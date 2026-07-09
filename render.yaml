@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: al-qwal-backend
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    repo: https://github.com/your-repo/al-qwal-publications
+    branch: main
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: al-qwal-db
+          property: connectionString
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: SECRET_KEY
+        generateValue: true
+      - key: FLASK_ENV
+        value: production
+      - key: R2_BUCKET_NAME
+        sync: false
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+
+  - type: web
+    name: al-qwal-frontend
+    env: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: ./frontend/dist
+    repo: https://github.com/your-repo/al-qwal-publications
+    branch: main
+    envVars:
+      - key: VITE_API_URL
+        value: https://al-qwal-backend.onrender.com/api
