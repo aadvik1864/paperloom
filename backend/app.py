@@ -27,6 +27,7 @@ def create_app(config_class=Config):
         """Seed database with admin user and categories."""
         from database.seed import seed_database
         with app.app_context():
+            db.create_all()
             seed_database()
     
     # Register blueprints

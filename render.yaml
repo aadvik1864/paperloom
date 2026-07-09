@@ -3,7 +3,7 @@ services:
     name: al-qwal-backend
     env: docker
     dockerfilePath: ./backend/Dockerfile
-    repo: https://github.com/your-repo/al-qwal-publications
+    repo: https://github.com/aadvik1864/al-qwal-publications
     branch: main
     healthCheckPath: /health
     envVars:
@@ -31,7 +31,7 @@ services:
     env: static
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: ./frontend/dist
-    repo: https://github.com/your-repo/al-qwal-publications
+    repo: https://github.com/aadvik1864/al-qwal-publications
     branch: main
     envVars:
       - key: VITE_API_URL
