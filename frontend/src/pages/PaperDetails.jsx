@@ -16,6 +16,7 @@ export default function PaperDetails() {
   const [bookmarked, setBookmarked] = useState(false);
   const [numPages, setNumPages] = useState(null);
   const [pageNumber, setPageNumber] = useState(1);
+  const [pdfError, setPdfError] = useState(null);
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -48,7 +49,10 @@ export default function PaperDetails() {
         pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
         const pdfUrl = `${PDF_BASE}/papers/${id}/pdf`;
-        const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
+        const pdfRes = await fetch(pdfUrl);
+        if (!pdfRes.ok) throw new Error(`HTTP ${pdfRes.status}`);
+        const pdfBuffer = await pdfRes.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument(pdfBuffer).promise;
         setNumPages(pdf.numPages);
 
         const renderPage = async (num) => {
@@ -70,8 +74,10 @@ export default function PaperDetails() {
         // Expose for pagination
         window.__pdfDoc = pdf;
         window.__renderPage = renderPage;
+        setPdfError(null);
       } catch (err) {
         console.error('PDF load error:', err);
+        setPdfError(err.message || 'Failed to load PDF');
       }
     };
     loadPdf();
@@ -232,7 +238,12 @@ export default function PaperDetails() {
             )}
 
             <div className="flex justify-center bg-gray-100 dark:bg-gray-900 p-4 min-h-[500px]">
-              {paper.pdf_url ? (
+              {pdfError ? (
+                <div className="flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
+                  <p>PDF preview unavailable</p>
+                  <p className="text-xs mt-2">{pdfError}</p>
+                </div>
+              ) : paper.pdf_url ? (
                 <canvas ref={canvasRef} className="shadow-lg max-w-full" />
               ) : (
                 <div className="flex items-center justify-center text-gray-400 dark:text-gray-500">
