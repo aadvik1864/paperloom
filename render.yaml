@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: al-qwal-publications
+    name: al-qwal-backend
     env: docker
     dockerfilePath: ./backend/Dockerfile
     repo: https://github.com/aadvik1864/al-qwal-publications
@@ -35,4 +35,4 @@ services:
     branch: main
     envVars:
       - key: VITE_API_URL
-        value: https://al-qwal-publications.onrender.com/api
+        value: https://al-qwal-backend.onrender.com/api
