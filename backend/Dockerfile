@@ -1,5 +1,6 @@
 FROM python:3.12-slim
 
+# Force fresh build 2026-07-10
 WORKDIR /app
 
 # Install system dependencies including LibreOffice for DOCX conversion
