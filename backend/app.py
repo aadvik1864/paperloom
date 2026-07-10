@@ -52,6 +52,16 @@ def create_app(config_class=Config):
     @app.route("/health")
     def health_check():
         return jsonify({"status": "healthy", "service": "al-qwal-publications"}), 200
+
+    @app.route("/debug/config")
+    def debug_config():
+        jsk = app.config.get("JWT_SECRET_KEY", "NOT SET")
+        return jsonify({
+            "JWT_SECRET_KEY_PREFIX": jsk[:10] + "..." if len(jsk) > 10 else jsk,
+            "JWT_SECRET_KEY_LEN": len(jsk) if jsk else 0,
+            "FLASK_ENV": app.config.get("FLASK_ENV", "NOT SET"),
+            "DATABASE_URL_PREFIX": (app.config.get("SQLALCHEMY_DATABASE_URI", "")[:30] + "...") if app.config.get("SQLALCHEMY_DATABASE_URI") else "NOT SET",
+        })
         
     @jwt.unauthorized_loader
     def unauthorized_response(callback):
