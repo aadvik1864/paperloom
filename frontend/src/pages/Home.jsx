@@ -40,8 +40,8 @@ export default function Home() {
           api.get('/papers?per_page=3&sort=most_viewed'),
           api.get('/blogs?per_page=3'),
         ]);
-        setPapers(papersRes.data.papers);
-        setBlogs(blogsRes.data.blogs);
+        setPapers(papersRes.data.papers || []);
+        setBlogs(blogsRes.data.blogs || []);
       } catch (err) {
         console.error('Failed to load home data:', err);
       } finally {

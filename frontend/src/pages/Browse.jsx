@@ -35,18 +35,18 @@ export default function Browse() {
         if (search) params.search = search;
 
         const res = await api.get('/blogs', { params });
-        setBlogs(res.data.blogs);
-        setTotal(res.data.total);
-        setPages(res.data.pages);
+        setBlogs(res.data.blogs || []);
+        setTotal(res.data.total ?? 0);
+        setPages(res.data.pages ?? 1);
       } else {
         const params = { page, per_page: 12, sort };
         if (search) params.search = search;
         if (categoryId) params.category_id = categoryId;
 
         const res = await api.get('/papers', { params });
-        setPapers(res.data.papers);
-        setTotal(res.data.total);
-        setPages(res.data.pages);
+        setPapers(res.data.papers || []);
+        setTotal(res.data.total ?? 0);
+        setPages(res.data.pages ?? 1);
       }
     } catch (err) {
       console.error('Browse fetch error:', err);
@@ -56,7 +56,7 @@ export default function Browse() {
   }, [type, page, search, categoryId, sort]);
 
   useEffect(() => {
-    api.get('/papers/categories').then((res) => setCategories(res.data.categories)).catch(() => {});
+    api.get('/papers/categories').then((res) => setCategories(res.data.categories || [])).catch(() => {});
   }, []);
 
   useEffect(() => {

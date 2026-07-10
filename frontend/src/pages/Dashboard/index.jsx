@@ -15,7 +15,7 @@ export default function Dashboard() {
     const fetchDashboard = async () => {
       try {
         const res = await api.get('/users/dashboard');
-        setDashboard(res.data);
+        setDashboard(res.data || {});
       } catch (err) {
         console.error('Dashboard error:', err);
       } finally {
@@ -66,17 +66,19 @@ export default function Dashboard() {
 }
 
 function StatsTab({ dashboard }) {
-  const { stats, recent_papers, recent_blogs } = dashboard;
+  const stats = dashboard.stats || {};
+  const recent_papers = dashboard.recent_papers || [];
+  const recent_blogs = dashboard.recent_blogs || [];
 
   return (
     <div>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
         {[
-          { label: 'Papers', value: stats.total_papers },
-          { label: 'Views', value: stats.total_views.toLocaleString() },
-          { label: 'Downloads', value: stats.total_downloads.toLocaleString() },
-          { label: 'Blogs', value: stats.total_blogs },
-          { label: 'Bookmarks', value: stats.total_bookmarks },
+          { label: 'Papers', value: stats.total_papers ?? 0 },
+          { label: 'Views', value: (stats.total_views ?? 0).toLocaleString() },
+          { label: 'Downloads', value: (stats.total_downloads ?? 0).toLocaleString() },
+          { label: 'Blogs', value: stats.total_blogs ?? 0 },
+          { label: 'Bookmarks', value: stats.total_bookmarks ?? 0 },
         ].map((s) => (
           <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-4 text-center">
             <p className="text-2xl font-bold text-navy-900">{s.value}</p>
@@ -86,7 +88,7 @@ function StatsTab({ dashboard }) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {recent_papers?.length > 0 && (
+        {recent_papers.length > 0 && (
           <div>
             <h3 className="text-sm font-semibold text-navy-900 mb-3">Recent Papers</h3>
             <div className="space-y-2">
@@ -309,8 +311,8 @@ function MyPapersTab() {
     try {
       const authorId = user?.id ?? '';
       const res = await api.get(`/papers?author_id=${authorId}&per_page=20&page=${page}`);
-      setPapers(res.data.papers);
-      setPages(res.data.pages);
+      setPapers(res.data.papers || []);
+      setPages(res.data.pages ?? 1);
     } catch (err) {
       console.error(err);
     } finally {
@@ -366,8 +368,8 @@ function MyBlogsTab() {
     try {
       const uid = user?.id ?? null;
       const res = await api.get(`/blogs?author_id=${uid || ''}&per_page=20&page=${page}`);
-      setBlogs(res.data.blogs);
-      setPages(res.data.pages);
+      setBlogs(res.data.blogs || []);
+      setPages(res.data.pages ?? 1);
     } catch (err) {
       console.error(err);
     } finally {
@@ -416,7 +418,7 @@ function BookmarksTab() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/users/bookmarks').then((res) => setBookmarks(res.data.bookmarks)).catch(console.error).finally(() => setLoading(false));
+    api.get('/users/bookmarks').then((res) => setBookmarks(res.data.bookmarks || [])).catch(console.error).finally(() => setLoading(false));
   }, []);
 
   if (loading) return <LoadingPage />;

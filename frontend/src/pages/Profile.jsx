@@ -19,8 +19,8 @@ export default function Profile() {
           api.get(`/users/${id}/blogs?per_page=50`),
         ]);
         setProfile(userRes.data.user);
-        setPapers(papersRes.data.papers);
-        setBlogs(blogsRes.data.blogs);
+        setPapers(papersRes.data.papers || []);
+        setBlogs(blogsRes.data.blogs || []);
       } catch (err) {
         console.error('Failed to load profile:', err);
       } finally {

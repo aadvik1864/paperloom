@@ -35,7 +35,7 @@ export default function BlogDetails() {
       const res = await api.post(`/blogs/${blog.id}/comments`, { content: commentText });
       setBlog((prev) => ({
         ...prev,
-        comments: [...(prev.comments || []), res.data.comment],
+        comments: [...(prev.comments || []), res.data?.comment].filter(Boolean),
       }));
       setCommentText('');
     } catch (err) {

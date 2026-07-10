@@ -47,30 +47,34 @@ function AnalyticsTab() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/admin/analytics').then((res) => setData(res.data)).catch(console.error).finally(() => setLoading(false));
+    api.get('/admin/analytics').then((res) => setData(res.data)).catch(() => setData(null)).finally(() => setLoading(false));
   }, []);
 
   if (loading) return <LoadingPage />;
   if (!data) return <p className="text-gray-500">Failed to load analytics.</p>;
 
+  const stats = data.stats || {};
+  const userBreakdown = data.user_breakdown || {};
+  const categoryBreakdown = data.category_breakdown || [];
+
   return (
     <div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <StatCard label="Total Users" value={data.stats.total_users} />
-        <StatCard label="Total Papers" value={data.stats.total_papers} />
-        <StatCard label="Total Blogs" value={data.stats.total_blogs} />
-        <StatCard label="Total Views" value={data.stats.total_views.toLocaleString()} />
-        <StatCard label="Total Downloads" value={data.stats.total_downloads.toLocaleString()} />
-        <StatCard label="Admins" value={data.user_breakdown.admins} />
-        <StatCard label="Authors" value={data.user_breakdown.authors} />
-        <StatCard label="Visitors" value={data.user_breakdown.visitors} />
+        <StatCard label="Total Users" value={stats.total_users ?? 0} />
+        <StatCard label="Total Papers" value={stats.total_papers ?? 0} />
+        <StatCard label="Total Blogs" value={stats.total_blogs ?? 0} />
+        <StatCard label="Total Views" value={(stats.total_views ?? 0).toLocaleString()} />
+        <StatCard label="Total Downloads" value={(stats.total_downloads ?? 0).toLocaleString()} />
+        <StatCard label="Admins" value={userBreakdown.admins ?? 0} />
+        <StatCard label="Authors" value={userBreakdown.authors ?? 0} />
+        <StatCard label="Visitors" value={userBreakdown.visitors ?? 0} />
       </div>
 
-      {data.category_breakdown?.length > 0 && (
+      {categoryBreakdown.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <h3 className="text-sm font-semibold text-navy-900 mb-4">Papers by Category</h3>
           <div className="space-y-3">
-            {data.category_breakdown.map((cat) => (
+            {categoryBreakdown.map((cat) => (
               <div key={cat.name} className="flex items-center justify-between text-sm">
                 <span className="text-gray-600">{cat.name}</span>
                 <span className="font-medium text-navy-900">{cat.count}</span>
@@ -174,7 +178,7 @@ function UsersTab() {
   const fetchUsers = () => {
     setLoading(true);
     api.get(`/admin/users?page=${page}&per_page=20`)
-      .then((res) => { setUsers(res.data.users); setPages(res.data.pages); })
+      .then((res) => { setUsers(res.data.users || []); setPages(res.data.pages ?? 1); })
       .catch(console.error)
       .finally(() => setLoading(false));
   };
@@ -274,7 +278,7 @@ function AdminPapersTab() {
   const fetchPapers = () => {
     setLoading(true);
     api.get(`/admin/papers?page=${page}&per_page=20`)
-      .then((res) => { setPapers(res.data.papers); setPages(res.data.pages); })
+      .then((res) => { setPapers(res.data.papers || []); setPages(res.data.pages ?? 1); })
       .catch(console.error)
       .finally(() => setLoading(false));
   };
@@ -339,7 +343,7 @@ function AdminBlogsTab() {
   const fetchBlogs = () => {
     setLoading(true);
     api.get(`/admin/blogs?page=${page}&per_page=20`)
-      .then((res) => { setBlogs(res.data.blogs); setPages(res.data.pages); })
+      .then((res) => { setBlogs(res.data.blogs || []); setPages(res.data.pages ?? 1); })
       .catch(console.error)
       .finally(() => setLoading(false));
   };
