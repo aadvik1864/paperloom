@@ -65,7 +65,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-28">
           <div className="max-w-3xl mx-auto text-center">
             <span className="inline-block text-xs font-medium text-navy-200 bg-white/10 px-3 py-1 rounded-full mb-4">
-              Academic Research Platform
+              Academic Research Platform(scopus-indexed)
             </span>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-4">
               Publish. Discover. Connect.
