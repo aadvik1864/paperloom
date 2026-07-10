@@ -4,14 +4,7 @@ import { useAuth } from '../context/AuthContext';
 export default function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
 
-  const cachedUser = (() => {
-    const stored = localStorage.getItem('user');
-    return stored ? JSON.parse(stored) : null;
-  })();
-
-  const effectiveUser = user || cachedUser;
-
-  if (loading && !effectiveUser) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-accent"></div>
@@ -19,11 +12,11 @@ export default function ProtectedRoute({ children, roles }) {
     );
   }
 
-  if (!effectiveUser) {
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  if (roles && !roles.includes(effectiveUser.role)) {
+  if (roles && !roles.includes(user.role)) {
     return <Navigate to="/" replace />;
   }
 

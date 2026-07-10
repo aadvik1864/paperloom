@@ -298,6 +298,7 @@ function WriteBlogTab() {
 }
 
 function MyPapersTab() {
+  const { user } = useAuth();
   const [papers, setPapers] = useState([]);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
@@ -306,7 +307,8 @@ function MyPapersTab() {
   const fetchPapers = async () => {
     setLoading(true);
     try {
-      const res = await api.get(`/papers?author_id=${localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')).id : ''}&per_page=20&page=${page}`);
+      const authorId = user?.id ?? '';
+      const res = await api.get(`/papers?author_id=${authorId}&per_page=20&page=${page}`);
       setPapers(res.data.papers);
       setPages(res.data.pages);
     } catch (err) {
@@ -353,6 +355,7 @@ function MyPapersTab() {
 }
 
 function MyBlogsTab() {
+  const { user } = useAuth();
   const [blogs, setBlogs] = useState([]);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
@@ -361,8 +364,7 @@ function MyBlogsTab() {
   const fetchBlogs = async () => {
     setLoading(true);
     try {
-      const stored = localStorage.getItem('user');
-      const uid = stored ? JSON.parse(stored).id : null;
+      const uid = user?.id ?? null;
       const res = await api.get(`/blogs?author_id=${uid || ''}&per_page=20&page=${page}`);
       setBlogs(res.data.blogs);
       setPages(res.data.pages);

@@ -3,11 +3,27 @@ import api from '../services/api';
 
 const AuthContext = createContext(null);
 
+function getSafeUser(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    localStorage.removeItem(key);
+    localStorage.removeItem('token');
+    return null;
+  }
+}
+
+function setSafeUser(key, value) {
+  if (value == null) {
+    localStorage.removeItem(key);
+  } else {
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+}
+
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    const cached = localStorage.getItem('user');
-    return cached ? JSON.parse(cached) : null;
-  });
+  const [user, setUser] = useState(() => getSafeUser('user'));
   const [loading, setLoading] = useState(true);
 
   const fetchUser = useCallback(async () => {
@@ -20,12 +36,13 @@ export function AuthProvider({ children }) {
     }
     try {
       const res = await api.get('/auth/me');
-      setUser(res.data.user);
-      localStorage.setItem('user', JSON.stringify(res.data.user));
+      const u = res.data?.user ?? null;
+      setUser(u);
+      setSafeUser('user', u);
     } catch {
-      const cached = localStorage.getItem('user');
+      const cached = getSafeUser('user');
       if (cached) {
-        setUser(JSON.parse(cached));
+        setUser(cached);
       } else {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
@@ -43,8 +60,9 @@ export function AuthProvider({ children }) {
   const login = async (profileName, password) => {
     const res = await api.post('/auth/login', { profile_name: profileName, password });
     localStorage.setItem('token', res.data.token);
-    localStorage.setItem('user', JSON.stringify(res.data.user));
-    setUser(res.data.user);
+    const u = res.data?.user ?? null;
+    setSafeUser('user', u);
+    setUser(u);
     return res.data;
   };
 
