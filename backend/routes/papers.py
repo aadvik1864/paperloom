@@ -122,7 +122,7 @@ def get_citations(paper_id):
 @jwt_required()
 @role_required(["author", "admin"])
 def create_paper():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
 
     if "file" not in request.files:
         return jsonify({"message": "No file provided."}), 400
@@ -179,7 +179,7 @@ def create_paper():
 @jwt_required()
 @role_required(["author", "admin"])
 def update_paper(paper_id):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     paper = Paper.query.get_or_404(paper_id)
 
     if paper.primary_author_id != user_id:
@@ -232,7 +232,7 @@ def update_paper(paper_id):
 @jwt_required()
 @role_required(["author", "admin"])
 def delete_paper(paper_id):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     paper = Paper.query.get_or_404(paper_id)
 
     if paper.primary_author_id != user_id:
@@ -255,7 +255,7 @@ def delete_paper(paper_id):
 @papers_bp.route("/<int:paper_id>/bookmark", methods=["POST"])
 @jwt_required()
 def toggle_bookmark(paper_id):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     paper = Paper.query.get_or_404(paper_id)
 
     bookmark = Bookmark.query.filter_by(user_id=user_id, paper_id=paper_id).first()
@@ -273,6 +273,6 @@ def toggle_bookmark(paper_id):
 @papers_bp.route("/<int:paper_id>/bookmark", methods=["GET"])
 @jwt_required()
 def check_bookmark(paper_id):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     bookmark = Bookmark.query.filter_by(user_id=user_id, paper_id=paper_id).first()
     return jsonify({"bookmarked": bookmark is not None}), 200

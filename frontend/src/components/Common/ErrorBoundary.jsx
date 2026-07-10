@@ -13,10 +13,10 @@ export default class ErrorBoundary extends Component {
   render() {
     if (this.state.error) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
           <div className="max-w-md text-center">
-            <h1 className="text-2xl font-bold text-navy-900 mb-2">Something went wrong</h1>
-            <p className="text-gray-500 text-sm mb-4">
+            <h1 className="text-2xl font-bold text-navy-900 dark:text-white mb-2">Something went wrong</h1>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
               An unexpected error occurred. Please try clearing your browser cache and signing in again.
             </p>
             <button

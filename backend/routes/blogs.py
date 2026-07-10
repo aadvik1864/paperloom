@@ -72,18 +72,19 @@ def get_blog(slug_or_id):
 @jwt_required()
 @role_required(["author", "admin"])
 def create_blog():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     data = request.get_json() or {}
 
     title = data.get("title", "").strip()
     content = data.get("content", "").strip()
     category = data.get("category", "").strip()
-    tags = data.get("tags", "").strip()
+    raw_tags = data.get("tags", "")
+    tags = ", ".join(raw_tags) if isinstance(raw_tags, list) else raw_tags.strip()
     cover_image_url = data.get("cover_image_url", "").strip()
     status = data.get("status", "published")
 
     if not title or not content:
-        return jsonify({"message": "Title and content are required."}, 400)
+        return jsonify({"message": "Title and content are required."}), 400
 
     base_slug = slugify(title)
     slug = base_slug
@@ -113,7 +114,7 @@ def create_blog():
 @jwt_required()
 @role_required(["author", "admin"])
 def update_blog(blog_id):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     blog = Blog.query.get_or_404(blog_id)
 
     if blog.author_id != user_id:
@@ -130,7 +131,8 @@ def update_blog(blog_id):
     if "category" in data:
         blog.category = data["category"].strip()
     if "tags" in data:
-        blog.tags = data["tags"].strip()
+        raw = data["tags"]
+        blog.tags = ", ".join(raw) if isinstance(raw, list) else raw.strip()
     if "cover_image_url" in data:
         blog.cover_image_url = data["cover_image_url"].strip()
     if "status" in data:
@@ -147,7 +149,7 @@ def update_blog(blog_id):
 @jwt_required()
 @role_required(["author", "admin"])
 def delete_blog(blog_id):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     blog = Blog.query.get_or_404(blog_id)
 
     if blog.author_id != user_id:
@@ -163,7 +165,7 @@ def delete_blog(blog_id):
 @blogs_bp.route("/<int:blog_id>/comments", methods=["POST"])
 @jwt_required()
 def add_comment(blog_id):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     blog = Blog.query.get_or_404(blog_id)
     data = request.get_json() or {}
 
@@ -185,7 +187,7 @@ def add_comment(blog_id):
 @blogs_bp.route("/comments/<int:comment_id>", methods=["DELETE"])
 @jwt_required()
 def delete_comment(comment_id):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     comment = Comment.query.get_or_404(comment_id)
 
     if comment.user_id != user_id:

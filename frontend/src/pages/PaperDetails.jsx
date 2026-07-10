@@ -106,7 +106,7 @@ export default function PaperDetails() {
 
   if (loading) return <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"><SkeletonPaperDetail /></div>;
   if (!paper) return (
-    <div className="max-w-7xl mx-auto px-4 py-20 text-center text-gray-500">
+    <div className="max-w-7xl mx-auto px-4 py-20 text-center text-gray-500 dark:text-gray-400">
       Paper not found.
     </div>
   );
@@ -120,30 +120,30 @@ export default function PaperDetails() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Metadata */}
         <div className="lg:col-span-1 order-2 lg:order-1">
-          <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4 sticky top-20">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 space-y-4 sticky top-20">
             <div>
               <span className="text-xs font-medium text-accent bg-accent-light px-2 py-1 rounded-full">
                 {paper.category_name || 'Uncategorized'}
               </span>
             </div>
 
-            <h1 className="text-xl font-bold text-navy-900 leading-snug">{paper.title}</h1>
+            <h1 className="text-xl font-bold text-navy-900 dark:text-white leading-snug">{paper.title}</h1>
 
-            <div className="text-sm text-gray-600 space-y-1">
-              <p><span className="font-medium text-gray-900">Authors:</span> {paper.authors}</p>
+            <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
+              <p><span className="font-medium text-gray-900 dark:text-gray-100">Authors:</span> {paper.authors}</p>
               {paper.institution && (
-                <p><span className="font-medium text-gray-900">Institution:</span> {paper.institution}</p>
+                <p><span className="font-medium text-gray-900 dark:text-gray-100">Institution:</span> {paper.institution}</p>
               )}
               {paper.department && (
-                <p><span className="font-medium text-gray-900">Department:</span> {paper.department}</p>
+                <p><span className="font-medium text-gray-900 dark:text-gray-100">Department:</span> {paper.department}</p>
               )}
-              <p><span className="font-medium text-gray-900">Published:</span> {paper.published_at?.slice(0, 10)}</p>
+              <p><span className="font-medium text-gray-900 dark:text-gray-100">Published:</span> {paper.published_at?.slice(0, 10)}</p>
               {paper.keywords && (
-                <p><span className="font-medium text-gray-900">Keywords:</span> {paper.keywords}</p>
+                <p><span className="font-medium text-gray-900 dark:text-gray-100">Keywords:</span> {paper.keywords}</p>
               )}
             </div>
 
-            <div className="flex items-center space-x-4 text-sm text-gray-500 border-t border-gray-100 pt-4">
+            <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-700 pt-4">
               <span className="flex items-center space-x-1">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                 <span>{paper.view_count}</span>
@@ -169,7 +169,7 @@ export default function PaperDetails() {
                   className={`w-full py-2.5 rounded-lg transition font-medium text-sm border ${
                     bookmarked
                       ? 'bg-accent-light text-accent border-accent/30'
-                      : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                      : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}
                 >
                   {bookmarked ? 'Bookmarked' : 'Bookmark Paper'}
@@ -179,13 +179,13 @@ export default function PaperDetails() {
 
             {/* Citation */}
             {paper.citations && (
-              <div className="border-t border-gray-100 pt-4">
-                <h3 className="text-sm font-semibold text-navy-900 mb-3">Citations</h3>
+              <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
+                <h3 className="text-sm font-semibold text-navy-900 dark:text-white mb-3">Citations</h3>
                 <div className="space-y-3">
                   {Object.entries(paper.citations).map(([style, text]) => (
-                    <div key={style} className="bg-gray-50 rounded-lg p-3">
-                      <p className="text-xs font-medium text-gray-500 mb-1">{style}</p>
-                      <p className="text-xs text-gray-700 font-mono leading-relaxed break-all">{text}</p>
+                    <div key={style} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{style}</p>
+                      <p className="text-xs text-gray-700 dark:text-gray-200 font-mono leading-relaxed break-all">{text}</p>
                     </div>
                   ))}
                 </div>
@@ -193,34 +193,34 @@ export default function PaperDetails() {
             )}
 
             {/* Abstract */}
-            <div className="border-t border-gray-100 pt-4">
-              <h3 className="text-sm font-semibold text-navy-900 mb-2">Abstract</h3>
-              <p className="text-sm text-gray-600 leading-relaxed">{paper.abstract}</p>
+            <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
+              <h3 className="text-sm font-semibold text-navy-900 dark:text-white mb-2">Abstract</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{paper.abstract}</p>
             </div>
           </div>
         </div>
 
         {/* PDF Viewer */}
         <div className="lg:col-span-2 order-1 lg:order-2">
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
             {/* Viewer controls */}
             {numPages && (
-              <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
+              <div className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => changePage(-1)}
                     disabled={pageNumber <= 1}
-                    className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
                   >
                     Previous
                   </button>
-                  <span className="text-sm text-gray-600">
+                  <span className="text-sm text-gray-600 dark:text-gray-300">
                     Page {pageNumber} of {numPages}
                   </span>
                   <button
                     onClick={() => changePage(1)}
                     disabled={pageNumber >= numPages}
-                    className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
                   >
                     Next
                   </button>
@@ -228,11 +228,11 @@ export default function PaperDetails() {
               </div>
             )}
 
-            <div className="flex justify-center bg-gray-100 p-4 min-h-[500px]">
+            <div className="flex justify-center bg-gray-100 dark:bg-gray-900 p-4 min-h-[500px]">
               {paper.pdf_url ? (
                 <canvas ref={canvasRef} className="shadow-lg max-w-full" />
               ) : (
-                <div className="flex items-center justify-center text-gray-400">
+                <div className="flex items-center justify-center text-gray-400 dark:text-gray-500">
                   PDF not available
                 </div>
               )}

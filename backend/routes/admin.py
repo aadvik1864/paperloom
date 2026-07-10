@@ -111,7 +111,7 @@ def update_user_role(user_id):
 @jwt_required()
 @role_required("admin")
 def delete_user(user_id):
-    if user_id == get_jwt_identity():
+    if user_id == int(get_jwt_identity()):
         return jsonify({"message": "You cannot delete yourself."}), 400
 
     user = User.query.get_or_404(user_id)

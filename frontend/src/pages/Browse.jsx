@@ -81,27 +81,27 @@ export default function Browse() {
       <div className="flex gap-8">
         {/* Sidebar Filters */}
         <aside className="hidden lg:block w-64 flex-shrink-0">
-          <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-6 sticky top-20">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-6 sticky top-20">
             {/* Search */}
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Search</label>
+              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Search</label>
               <input
                 type="text"
                 placeholder={type === 'blogs' ? 'Search blogs...' : 'Search papers...'}
                 value={search}
                 onChange={(e) => updateParams({ search: e.target.value, page: '1' })}
-                className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent focus:border-accent"
+                className="w-full mt-2 px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent focus:border-accent"
               />
             </div>
 
             {/* Type toggle */}
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Content Type</label>
+              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Content Type</label>
               <div className="mt-2 space-y-2">
                 <button
                   onClick={() => updateParams({ type: 'papers', page: '1' })}
                   className={`block w-full text-left px-3 py-2 text-sm rounded-lg transition ${
-                    type === 'papers' ? 'bg-accent text-white' : 'text-gray-600 hover:bg-gray-50'
+                    type === 'papers' ? 'bg-accent text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}
                 >
                   Papers
@@ -109,7 +109,7 @@ export default function Browse() {
                 <button
                   onClick={() => updateParams({ type: 'blogs', page: '1' })}
                   className={`block w-full text-left px-3 py-2 text-sm rounded-lg transition ${
-                    type === 'blogs' ? 'bg-accent text-white' : 'text-gray-600 hover:bg-gray-50'
+                    type === 'blogs' ? 'bg-accent text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}
                 >
                   Blog Posts
@@ -120,12 +120,12 @@ export default function Browse() {
             {/* Categories (papers only) */}
             {type === 'papers' && (
               <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Category</label>
+                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Category</label>
                 <div className="mt-2 space-y-1 max-h-48 overflow-y-auto">
                   <button
                     onClick={() => updateParams({ category_id: '', page: '1' })}
                     className={`block w-full text-left px-3 py-1.5 text-sm rounded transition ${
-                      !categoryId ? 'text-accent font-medium' : 'text-gray-600 hover:text-gray-900'
+                      !categoryId ? 'text-accent font-medium' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
                     }`}
                   >
                     All Categories
@@ -135,7 +135,7 @@ export default function Browse() {
                       key={cat.id}
                       onClick={() => updateParams({ category_id: String(cat.id), page: '1' })}
                       className={`block w-full text-left px-3 py-1.5 text-sm rounded transition ${
-                        categoryId === String(cat.id) ? 'text-accent font-medium' : 'text-gray-600 hover:text-gray-900'
+                        categoryId === String(cat.id) ? 'text-accent font-medium' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
                       }`}
                     >
                       {cat.name}
@@ -147,11 +147,11 @@ export default function Browse() {
 
             {/* Sort */}
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Sort By</label>
+              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Sort By</label>
               <select
                 value={sort}
                 onChange={(e) => updateParams({ sort: e.target.value, page: '1' })}
-                className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent"
+                className="w-full mt-2 px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent"
               >
                 {Object.entries(SORT_OPTIONS).map(([key, opt]) => {
                   if (type === 'blogs' && (key === 'most_viewed' || key === 'most_downloaded')) return null;
@@ -169,12 +169,12 @@ export default function Browse() {
             placeholder="Search..."
             value={search}
             onChange={(e) => updateParams({ search: e.target.value, page: '1' })}
-            className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+            className="flex-1 min-w-0 px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none"
           />
           <select
             value={type}
             onChange={(e) => updateParams({ type: e.target.value, page: '1' })}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none"
           >
             <option value="papers">Papers</option>
             <option value="blogs">Blogs</option>
@@ -183,7 +183,7 @@ export default function Browse() {
             <select
               value={categoryId}
               onChange={(e) => updateParams({ category_id: e.target.value, page: '1' })}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none"
             >
               <option value="">All Categories</option>
               {categories.map((cat) => (
@@ -194,7 +194,7 @@ export default function Browse() {
           <select
             value={sort}
             onChange={(e) => updateParams({ sort: e.target.value, page: '1' })}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none"
           >
             {Object.entries(SORT_OPTIONS).map(([key, opt]) => {
               if (type === 'blogs' && (key === 'most_viewed' || key === 'most_downloaded')) return null;
@@ -206,7 +206,7 @@ export default function Browse() {
         {/* Results */}
         <div className="flex-1 min-w-0">
           {search && (
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
               {total} result{total !== 1 ? 's' : ''} for &quot;{search}&quot;
             </p>
           )}
@@ -221,7 +221,7 @@ export default function Browse() {
                 <Link
                   key={blog.id}
                   to={`/blogs/${blog.slug}`}
-                  className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 group"
+                  className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 group"
                 >
                   {blog.cover_image_url ? (
                     <img src={blog.cover_image_url} alt={blog.title} className="w-full h-44 object-cover group-hover:scale-105 transition-transform duration-300" />
@@ -236,16 +236,16 @@ export default function Browse() {
                         {blog.category}
                       </span>
                     )}
-                    <h3 className="font-semibold text-navy-900 mt-2 mb-1 line-clamp-2 group-hover:text-accent transition-colors">{blog.title}</h3>
-                    <p className="text-xs text-gray-400 mt-2 line-clamp-2">{blog.content?.substring(0, 120)}</p>
-                    <p className="text-xs text-gray-400 mt-2">
+                    <h3 className="font-semibold text-navy-900 dark:text-white mt-2 mb-1 line-clamp-2 group-hover:text-accent transition-colors">{blog.title}</h3>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 line-clamp-2">{blog.content?.substring(0, 120)}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
                       By {blog.author_name} &middot; {blog.published_at?.slice(0, 10)}
                     </p>
                   </div>
                 </Link>
               ))}
               {blogs.length === 0 && (
-                <div className="col-span-2 text-center py-20 text-gray-500">No blogs found.</div>
+                <div className="col-span-2 text-center py-20 text-gray-500 dark:text-gray-400">No blogs found.</div>
               )}
             </div>
           ) : (
@@ -254,29 +254,29 @@ export default function Browse() {
                 <Link
                   key={paper.id}
                   to={`/papers/${paper.id}`}
-                  className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 group"
+                  className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 group"
                 >
                   <div className="flex items-center space-x-2 mb-3">
                     <span className="text-xs font-medium text-accent bg-accent-light px-2.5 py-1 rounded-full">
                       {paper.category_name || 'Uncategorized'}
                     </span>
                   </div>
-                  <h3 className="font-semibold text-navy-900 mb-2 line-clamp-2 leading-snug group-hover:text-accent transition-colors">
+                  <h3 className="font-semibold text-navy-900 dark:text-white mb-2 line-clamp-2 leading-snug group-hover:text-accent transition-colors">
                     {paper.title}
                   </h3>
-                  <p className="text-sm text-gray-500 mb-3 line-clamp-2 leading-relaxed">{paper.abstract}</p>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 line-clamp-2 leading-relaxed">{paper.abstract}</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500">
                     {paper.authors && paper.authors.length > 40
                       ? paper.authors.substring(0, 40) + ' et al.'
                       : paper.authors
                     }
                     {paper.institution && ` \u00b7 ${paper.institution}`}
                   </p>
-                  <p className="text-xs text-gray-300 mt-2">{paper.published_at?.slice(0, 10)}</p>
+                  <p className="text-xs text-gray-300 dark:text-gray-500 mt-2">{paper.published_at?.slice(0, 10)}</p>
                 </Link>
               ))}
               {papers.length === 0 && (
-                <div className="col-span-2 text-center py-20 text-gray-500">No papers found.</div>
+                <div className="col-span-2 text-center py-20 text-gray-500 dark:text-gray-400">No papers found.</div>
               )}
             </div>
           )}

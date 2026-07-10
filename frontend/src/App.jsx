@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import ErrorBoundary from './components/Common/ErrorBoundary';
 import Header from './components/Layout/Header';
 import Footer from './components/Layout/Footer';
@@ -17,41 +18,43 @@ import AdminDashboard from './pages/Admin';
 function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <ErrorBoundary>
-          <div className="flex flex-col min-h-screen">
-            <Header />
-            <main className="flex-1">
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/about" element={<About />} />
-                <Route path="/browse" element={<Browse />} />
-                <Route path="/papers/:id" element={<PaperDetails />} />
-                <Route path="/blogs/:slug" element={<BlogDetails />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/profile/:id" element={<Profile />} />
-                <Route
-                  path="/dashboard/*"
-                  element={
-                    <ProtectedRoute roles={['author', 'admin']}>
-                      <Dashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/*"
-                  element={
-                    <ProtectedRoute roles={['admin']}>
-                      <AdminDashboard />
-                    </ProtectedRoute>
-                  }
-                />
-              </Routes>
-            </main>
-            <Footer />
-          </div>
-        </ErrorBoundary>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <ErrorBoundary>
+            <div className="flex flex-col min-h-screen">
+              <Header />
+              <main className="flex-1">
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/about" element={<About />} />
+                  <Route path="/browse" element={<Browse />} />
+                  <Route path="/papers/:id" element={<PaperDetails />} />
+                  <Route path="/blogs/:slug" element={<BlogDetails />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/profile/:id" element={<Profile />} />
+                  <Route
+                    path="/dashboard/*"
+                    element={
+                      <ProtectedRoute roles={['author', 'admin']}>
+                        <Dashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/*"
+                    element={
+                      <ProtectedRoute roles={['admin']}>
+                        <AdminDashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+                </Routes>
+              </main>
+              <Footer />
+            </div>
+          </ErrorBoundary>
+        </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }

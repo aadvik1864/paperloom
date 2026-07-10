@@ -29,10 +29,10 @@ export default function Dashboard() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-2xl font-bold text-navy-900 mb-6">Dashboard</h1>
+      <h1 className="text-2xl font-bold text-navy-900 dark:text-white mb-6">Dashboard</h1>
 
       {/* Tabs */}
-      <div className="flex space-x-1 bg-gray-100 rounded-lg p-1 w-fit mb-8 overflow-x-auto">
+      <div className="flex space-x-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1 w-fit mb-8 overflow-x-auto">
         {[
           { id: 'stats', label: 'Overview' },
           { id: 'upload', label: 'Upload Paper' },
@@ -46,7 +46,7 @@ export default function Dashboard() {
             key={t.id}
             onClick={() => setTab(t.id)}
             className={`px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap transition ${
-              tab === t.id ? 'bg-white text-navy-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              tab === t.id ? 'bg-white dark:bg-gray-600 text-navy-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
             }`}
           >
             {t.label}
@@ -80,9 +80,9 @@ function StatsTab({ dashboard }) {
           { label: 'Blogs', value: stats.total_blogs ?? 0 },
           { label: 'Bookmarks', value: stats.total_bookmarks ?? 0 },
         ].map((s) => (
-          <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-4 text-center">
-            <p className="text-2xl font-bold text-navy-900">{s.value}</p>
-            <p className="text-xs text-gray-500 mt-1">{s.label}</p>
+          <div key={s.label} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 text-center">
+            <p className="text-2xl font-bold text-navy-900 dark:text-white">{s.value}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{s.label}</p>
           </div>
         ))}
       </div>
@@ -90,12 +90,12 @@ function StatsTab({ dashboard }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {recent_papers.length > 0 && (
           <div>
-            <h3 className="text-sm font-semibold text-navy-900 mb-3">Recent Papers</h3>
+            <h3 className="text-sm font-semibold text-navy-900 dark:text-white mb-3">Recent Papers</h3>
             <div className="space-y-2">
               {recent_papers.map((p) => (
-                <Link key={p.id} to={`/papers/${p.id}`} className="block bg-white rounded-lg border border-gray-200 p-3 hover:shadow-sm transition">
-                  <p className="text-sm font-medium text-navy-900 truncate">{p.title}</p>
-                  <p className="text-xs text-gray-400">{p.view_count} views &middot; {p.download_count} downloads</p>
+                <Link key={p.id} to={`/papers/${p.id}`} className="block bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 hover:shadow-sm transition">
+                  <p className="text-sm font-medium text-navy-900 dark:text-white truncate">{p.title}</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500">{p.view_count} views &middot; {p.download_count} downloads</p>
                 </Link>
               ))}
             </div>
@@ -103,12 +103,12 @@ function StatsTab({ dashboard }) {
         )}
         {recent_blogs?.length > 0 && (
           <div>
-            <h3 className="text-sm font-semibold text-navy-900 mb-3">Recent Blogs</h3>
+            <h3 className="text-sm font-semibold text-navy-900 dark:text-white mb-3">Recent Blogs</h3>
             <div className="space-y-2">
               {recent_blogs.map((b) => (
-                <Link key={b.id} to={`/blogs/${b.slug}`} className="block bg-white rounded-lg border border-gray-200 p-3 hover:shadow-sm transition">
-                  <p className="text-sm font-medium text-navy-900 truncate">{b.title}</p>
-                  <p className="text-xs text-gray-400">{b.view_count} views</p>
+                <Link key={b.id} to={`/blogs/${b.slug}`} className="block bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 hover:shadow-sm transition">
+                  <p className="text-sm font-medium text-navy-900 dark:text-white truncate">{b.title}</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500">{b.view_count} views</p>
                 </Link>
               ))}
             </div>
@@ -158,57 +158,57 @@ function UploadPaperTab() {
 
   return (
     <div className="max-w-2xl">
-      <h2 className="text-lg font-semibold text-navy-900 mb-4">Upload Research Paper</h2>
+      <h2 className="text-lg font-semibold text-navy-900 dark:text-white mb-4">Upload Research Paper</h2>
       {message && (
-        <div className={`text-sm p-3 rounded-lg mb-4 ${message.type === 'success' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+        <div className={`text-sm p-3 rounded-lg mb-4 ${message.type === 'success' ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'}`}>
           {message.text}
         </div>
       )}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title *</label>
           <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent" />
+            className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Abstract *</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Abstract *</label>
           <textarea rows={4} value={form.abstract} onChange={(e) => setForm({ ...form, abstract: e.target.value })}
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent resize-none" />
+            className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent resize-none" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Authors *</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Authors *</label>
             <input type="text" value={form.authors} onChange={(e) => setForm({ ...form, authors: e.target.value })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent"
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent"
               placeholder="John Smith, Jane Doe" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category *</label>
             <select value={form.category_id} onChange={(e) => setForm({ ...form, category_id: e.target.value })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent">
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent">
               <option value="">Select category</option>
               {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Keywords</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Keywords</label>
             <input type="text" value={form.keywords} onChange={(e) => setForm({ ...form, keywords: e.target.value })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent"
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent"
               placeholder="machine learning, AI" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Institution</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Institution</label>
             <input type="text" value={form.institution} onChange={(e) => setForm({ ...form, institution: e.target.value })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent" />
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Department</label>
             <input type="text" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent" />
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent" />
           </div>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">File (PDF or DOCX) *</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">File (PDF or DOCX) *</label>
           <input type="file" accept=".pdf,.docx,.doc" onChange={(e) => setFile(e.target.files[0])}
             className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-accent file:text-white hover:file:bg-accent-hover" />
         </div>
@@ -247,47 +247,47 @@ function WriteBlogTab() {
 
   return (
     <div className="max-w-3xl">
-      <h2 className="text-lg font-semibold text-navy-900 mb-4">Write Blog Post</h2>
+      <h2 className="text-lg font-semibold text-navy-900 dark:text-white mb-4">Write Blog Post</h2>
       {message && (
-        <div className={`text-sm p-3 rounded-lg mb-4 ${message.type === 'success' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+        <div className={`text-sm p-3 rounded-lg mb-4 ${message.type === 'success' ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'}`}>
           {message.text}
         </div>
       )}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title *</label>
           <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent" />
+            className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Content (Markdown) *</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Content (Markdown) *</label>
           <textarea rows={12} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })}
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent font-mono resize-none" />
+            className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent font-mono resize-none" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
             <input type="text" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent" />
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tags (comma-separated)</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tags (comma-separated)</label>
             <input type="text" value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent" />
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
             <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent">
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent">
               <option value="published">Published</option>
               <option value="draft">Draft</option>
             </select>
           </div>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Cover Image URL</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cover Image URL</label>
           <input type="url" value={form.cover_image_url} onChange={(e) => setForm({ ...form, cover_image_url: e.target.value })}
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent"
+            className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent"
             placeholder="https://example.com/image.jpg" />
         </div>
         <button type="submit" disabled={publishing}
@@ -335,16 +335,16 @@ function MyPapersTab() {
   if (loading) return <LoadingPage />;
   return (
     <div>
-      <h2 className="text-lg font-semibold text-navy-900 mb-4">My Papers</h2>
+      <h2 className="text-lg font-semibold text-navy-900 dark:text-white mb-4">My Papers</h2>
       {papers.length === 0 ? (
-        <p className="text-sm text-gray-400">No papers yet.</p>
+        <p className="text-sm text-gray-400 dark:text-gray-500">No papers yet.</p>
       ) : (
         <div className="space-y-3">
           {papers.map((p) => (
-            <div key={p.id} className="bg-white rounded-lg border border-gray-200 p-4 flex items-center justify-between">
+            <div key={p.id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
               <div>
-                <Link to={`/papers/${p.id}`} className="font-medium text-navy-900 hover:text-accent">{p.title}</Link>
-                <p className="text-xs text-gray-400 mt-1">{p.view_count} views &middot; {p.download_count} downloads &middot; {p.published_at?.slice(0, 10)}</p>
+                <Link to={`/papers/${p.id}`} className="font-medium text-navy-900 dark:text-white hover:text-accent">{p.title}</Link>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{p.view_count} views &middot; {p.download_count} downloads &middot; {p.published_at?.slice(0, 10)}</p>
               </div>
               <button onClick={() => handleDelete(p.id)} className="text-xs text-red-400 hover:text-red-600">Delete</button>
             </div>
@@ -392,16 +392,16 @@ function MyBlogsTab() {
   if (loading) return <LoadingPage />;
   return (
     <div>
-      <h2 className="text-lg font-semibold text-navy-900 mb-4">My Blogs</h2>
+      <h2 className="text-lg font-semibold text-navy-900 dark:text-white mb-4">My Blogs</h2>
       {blogs.length === 0 ? (
-        <p className="text-sm text-gray-400">No blog posts yet.</p>
+        <p className="text-sm text-gray-400 dark:text-gray-500">No blog posts yet.</p>
       ) : (
         <div className="space-y-3">
           {blogs.map((b) => (
-            <div key={b.id} className="bg-white rounded-lg border border-gray-200 p-4 flex items-center justify-between">
+            <div key={b.id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
               <div>
-                <Link to={`/blogs/${b.slug}`} className="font-medium text-navy-900 hover:text-accent">{b.title}</Link>
-                <p className="text-xs text-gray-400 mt-1">{b.view_count} views &middot; {b.published_at?.slice(0, 10)} &middot; <span className="capitalize">{b.status}</span></p>
+                <Link to={`/blogs/${b.slug}`} className="font-medium text-navy-900 dark:text-white hover:text-accent">{b.title}</Link>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{b.view_count} views &middot; {b.published_at?.slice(0, 10)} &middot; <span className="capitalize">{b.status}</span></p>
               </div>
               <button onClick={() => handleDelete(b.id)} className="text-xs text-red-400 hover:text-red-600">Delete</button>
             </div>
@@ -424,15 +424,15 @@ function BookmarksTab() {
   if (loading) return <LoadingPage />;
   return (
     <div>
-      <h2 className="text-lg font-semibold text-navy-900 mb-4">Bookmarked Papers</h2>
+      <h2 className="text-lg font-semibold text-navy-900 dark:text-white mb-4">Bookmarked Papers</h2>
       {bookmarks.length === 0 ? (
-        <p className="text-sm text-gray-400">No bookmarked papers.</p>
+        <p className="text-sm text-gray-400 dark:text-gray-500">No bookmarked papers.</p>
       ) : (
         <div className="space-y-3">
           {bookmarks.map((p) => (
-            <Link key={p.id} to={`/papers/${p.id}`} className="block bg-white rounded-lg border border-gray-200 p-4 hover:shadow-sm transition">
-              <p className="font-medium text-navy-900">{p.title}</p>
-              <p className="text-xs text-gray-400 mt-1">{p.authors} &middot; {p.view_count} views</p>
+            <Link key={p.id} to={`/papers/${p.id}`} className="block bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-sm transition">
+              <p className="font-medium text-navy-900 dark:text-white">{p.title}</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{p.authors} &middot; {p.view_count} views</p>
             </Link>
           ))}
         </div>
@@ -479,53 +479,53 @@ function EditProfileTab() {
 
   return (
     <div className="max-w-2xl">
-      <h2 className="text-lg font-semibold text-navy-900 mb-4">Edit Profile</h2>
+      <h2 className="text-lg font-semibold text-navy-900 dark:text-white mb-4">Edit Profile</h2>
       {message && (
-        <div className={`text-sm p-3 rounded-lg mb-4 ${message.type === 'success' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+        <div className={`text-sm p-3 rounded-lg mb-4 ${message.type === 'success' ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'}`}>
           {message.text}
         </div>
       )}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Profile Name</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Profile Name</label>
           <input type="text" value={form.profile_name} onChange={(e) => setForm({ ...form, profile_name: e.target.value })}
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent" />
+            className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Bio</label>
           <textarea rows={3} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })}
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent resize-none" />
+            className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent resize-none" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Institution</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Institution</label>
             <input type="text" value={form.institution} onChange={(e) => setForm({ ...form, institution: e.target.value })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent" />
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Department</label>
             <input type="text" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent" />
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Website</label>
             <input type="url" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent" />
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Google Scholar</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Google Scholar</label>
             <input type="url" value={form.google_scholar} onChange={(e) => setForm({ ...form, google_scholar: e.target.value })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent" />
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">LinkedIn</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">LinkedIn</label>
             <input type="url" value={form.linkedin} onChange={(e) => setForm({ ...form, linkedin: e.target.value })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent" />
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">ResearchGate</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ResearchGate</label>
             <input type="url" value={form.researchgate} onChange={(e) => setForm({ ...form, researchgate: e.target.value })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent" />
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent" />
           </div>
         </div>
         <button type="submit" disabled={saving}

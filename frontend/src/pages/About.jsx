@@ -82,8 +82,8 @@ export default function About() {
       {/* Mission */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-2xl md:text-3xl font-bold text-navy-900 mb-6">Our Mission</h2>
-          <p className="text-gray-600 leading-relaxed text-lg">
+          <h2 className="text-2xl md:text-3xl font-bold text-navy-900 dark:text-white mb-6">Our Mission</h2>
+          <p className="text-gray-600 dark:text-gray-300 leading-relaxed text-lg">
             We believe that research should be accessible, discoverable, and shareable. Our platform provides
             a streamlined environment for researchers to publish their work, engage with peers, and track
             the impact of their contributions — all without unnecessary barriers or complex workflows.
@@ -92,17 +92,17 @@ export default function About() {
       </section>
 
       {/* Features */}
-      <section className="bg-gray-50 border-y border-gray-200">
+      <section className="bg-gray-50 dark:bg-gray-900 border-y border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-          <h2 className="text-2xl md:text-3xl font-bold text-navy-900 text-center mb-12">Platform Features</h2>
+          <h2 className="text-2xl md:text-3xl font-bold text-navy-900 dark:text-white text-center mb-12">Platform Features</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((f) => (
-              <div key={f.title} className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-md transition-shadow">
+              <div key={f.title} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-shadow">
                 <div className="w-10 h-10 bg-accent-light rounded-lg flex items-center justify-center text-accent mb-4">
                   {f.icon}
                 </div>
-                <h3 className="font-semibold text-navy-900 mb-2">{f.title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{f.desc}</p>
+                <h3 className="font-semibold text-navy-900 dark:text-white mb-2">{f.title}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{f.desc}</p>
               </div>
             ))}
           </div>
@@ -111,15 +111,15 @@ export default function About() {
 
       {/* How it works */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <h2 className="text-2xl md:text-3xl font-bold text-navy-900 text-center mb-12">How It Works</h2>
+        <h2 className="text-2xl md:text-3xl font-bold text-navy-900 dark:text-white text-center mb-12">How It Works</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
           {steps.map((s) => (
             <div key={s.step} className="text-center">
               <div className="w-14 h-14 bg-accent rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <span className="text-white font-bold text-lg">{s.step}</span>
               </div>
-              <h3 className="font-semibold text-navy-900 mb-2">{s.title}</h3>
-              <p className="text-sm text-gray-500 leading-relaxed">{s.desc}</p>
+              <h3 className="font-semibold text-navy-900 dark:text-white mb-2">{s.title}</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{s.desc}</p>
             </div>
           ))}
         </div>

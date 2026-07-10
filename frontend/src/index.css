@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:is(.dark *));
+
 @theme {
   --color-navy-900: #0a1628;
   --color-navy-800: #0f1f3d;
@@ -25,6 +27,11 @@ body {
   color: #1e293b;
 }
 
+.dark body {
+  background-color: #0f172a;
+  color: #e2e8f0;
+}
+
 #root {
   min-height: 100vh;
   display: flex;
@@ -39,3 +46,8 @@ body {
 main {
   animation: fadeIn 0.3s ease-out;
 }
+
+/* Force dark scrollbar in dark mode */
+.dark ::-webkit-scrollbar { width: 8px; }
+.dark ::-webkit-scrollbar-track { background: #1e293b; }
+.dark ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }

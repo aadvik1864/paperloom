@@ -32,7 +32,7 @@ export default function Profile() {
 
   if (loading) return <LoadingPage />;
   if (!profile) return (
-    <div className="max-w-4xl mx-auto px-4 py-20 text-center text-gray-500">
+    <div className="max-w-4xl mx-auto px-4 py-20 text-center text-gray-500 dark:text-gray-400">
       User not found.
     </div>
   );
@@ -40,16 +40,16 @@ export default function Profile() {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Profile Header */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 md:p-8 mb-8">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 md:p-8 mb-8">
         <div className="flex flex-col md:flex-row items-start md:items-center space-y-4 md:space-y-0 md:space-x-6">
-          <div className="w-20 h-20 bg-navy-100 rounded-full flex items-center justify-center flex-shrink-0">
-            <span className="text-2xl font-bold text-navy-600">
+          <div className="w-20 h-20 bg-navy-100 dark:bg-navy-800 rounded-full flex items-center justify-center flex-shrink-0">
+            <span className="text-2xl font-bold text-navy-600 dark:text-navy-300">
               {profile.profile_name?.charAt(0).toUpperCase()}
             </span>
           </div>
           <div className="flex-1">
-            <h1 className="text-2xl font-bold text-navy-900">{profile.profile_name}</h1>
-            <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-gray-500">
+            <h1 className="text-2xl font-bold text-navy-900 dark:text-white">{profile.profile_name}</h1>
+            <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-gray-500 dark:text-gray-400">
               <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-accent-light text-accent capitalize">
                 {profile.role}
               </span>
@@ -57,7 +57,7 @@ export default function Profile() {
               {profile.department && <span>&middot; {profile.department}</span>}
             </div>
             {profile.bio && (
-              <p className="text-sm text-gray-600 mt-3">{profile.bio}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mt-3">{profile.bio}</p>
             )}
             {/* Social links */}
             <div className="flex flex-wrap gap-3 mt-3">
@@ -88,19 +88,19 @@ export default function Profile() {
 
       {/* Papers */}
       <div className="mb-8">
-        <h2 className="text-lg font-semibold text-navy-900 mb-4">Published Papers ({papers.length})</h2>
+        <h2 className="text-lg font-semibold text-navy-900 dark:text-white mb-4">Published Papers ({papers.length})</h2>
         {papers.length === 0 ? (
-          <p className="text-sm text-gray-400">No papers published yet.</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500">No papers published yet.</p>
         ) : (
           <div className="space-y-3">
             {papers.map((paper) => (
               <Link
                 key={paper.id}
                 to={`/papers/${paper.id}`}
-                className="block bg-white rounded-lg border border-gray-200 p-4 hover:shadow-sm transition"
+                className="block bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-sm transition"
               >
-                <h3 className="font-medium text-navy-900">{paper.title}</h3>
-                <div className="flex items-center space-x-3 mt-1 text-xs text-gray-400">
+                <h3 className="font-medium text-navy-900 dark:text-white">{paper.title}</h3>
+                <div className="flex items-center space-x-3 mt-1 text-xs text-gray-400 dark:text-gray-500">
                   <span>{paper.published_at?.slice(0, 10)}</span>
                   <span>{paper.view_count} views</span>
                   <span>{paper.download_count} downloads</span>
@@ -113,19 +113,19 @@ export default function Profile() {
 
       {/* Blogs */}
       <div>
-        <h2 className="text-lg font-semibold text-navy-900 mb-4">Blog Posts ({blogs.length})</h2>
+        <h2 className="text-lg font-semibold text-navy-900 dark:text-white mb-4">Blog Posts ({blogs.length})</h2>
         {blogs.length === 0 ? (
-          <p className="text-sm text-gray-400">No blog posts yet.</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500">No blog posts yet.</p>
         ) : (
           <div className="space-y-3">
             {blogs.map((blog) => (
               <Link
                 key={blog.id}
                 to={`/blogs/${blog.slug}`}
-                className="block bg-white rounded-lg border border-gray-200 p-4 hover:shadow-sm transition"
+                className="block bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-sm transition"
               >
-                <h3 className="font-medium text-navy-900">{blog.title}</h3>
-                <p className="text-xs text-gray-400 mt-1">
+                <h3 className="font-medium text-navy-900 dark:text-white">{blog.title}</h3>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                   {blog.published_at?.slice(0, 10)} &middot; {blog.view_count} views
                 </p>
               </Link>

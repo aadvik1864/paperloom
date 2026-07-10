@@ -55,7 +55,7 @@ def get_user_blogs(user_id):
 @users_bp.route("/profile", methods=["PUT"])
 @jwt_required()
 def update_profile():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     user = User.query.get_or_404(user_id)
 
     data = request.get_json() or {}
@@ -82,7 +82,7 @@ def update_profile():
 @users_bp.route("/dashboard", methods=["GET"])
 @jwt_required()
 def get_dashboard():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     user = User.query.get_or_404(user_id)
 
     total_papers = Paper.query.filter_by(primary_author_id=user_id).count()
@@ -111,7 +111,7 @@ def get_dashboard():
 @users_bp.route("/bookmarks", methods=["GET"])
 @jwt_required()
 def get_bookmarks():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     bookmarks = Bookmark.query.filter_by(user_id=user_id).order_by(Bookmark.created_at.desc()).all()
     papers = []
     for bm in bookmarks:

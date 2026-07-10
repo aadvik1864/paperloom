@@ -118,28 +118,28 @@ export default function Home() {
       {/* Features */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <div className="text-center mb-12">
-          <h2 className="text-2xl md:text-3xl font-bold text-navy-900 mb-3">What We Offer</h2>
-          <p className="text-gray-500 max-w-2xl mx-auto">
+          <h2 className="text-2xl md:text-3xl font-bold text-navy-900 dark:text-white mb-3">What We Offer</h2>
+          <p className="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">
             Everything you need to publish, manage, and share academic research.
           </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {features.map((f) => (
-            <div key={f.title} className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-md transition-shadow">
+            <div key={f.title} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-shadow">
               <span className="text-3xl block mb-3">{f.icon}</span>
-              <h3 className="font-semibold text-navy-900 mb-2">{f.title}</h3>
-              <p className="text-sm text-gray-500 leading-relaxed">{f.desc}</p>
+              <h3 className="font-semibold text-navy-900 dark:text-white mb-2">{f.title}</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{f.desc}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* How it works */}
-      <section className="bg-gray-50 border-y border-gray-200">
+      <section className="bg-gray-50 dark:bg-gray-900 border-y border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
           <div className="text-center mb-12">
-            <h2 className="text-2xl md:text-3xl font-bold text-navy-900 mb-3">How It Works</h2>
-            <p className="text-gray-500 max-w-2xl mx-auto">
+            <h2 className="text-2xl md:text-3xl font-bold text-navy-900 dark:text-white mb-3">How It Works</h2>
+            <p className="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">
               Three simple steps to start publishing and discovering research.
             </p>
           </div>
@@ -153,8 +153,8 @@ export default function Home() {
                 <div className="w-14 h-14 bg-accent rounded-2xl flex items-center justify-center mx-auto mb-4">
                   <span className="text-white font-bold text-xl">{s.step}</span>
                 </div>
-                <h3 className="font-semibold text-navy-900 mb-2">{s.title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{s.desc}</p>
+                <h3 className="font-semibold text-navy-900 dark:text-white mb-2">{s.title}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{s.desc}</p>
               </div>
             ))}
           </div>
@@ -165,8 +165,8 @@ export default function Home() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h2 className="text-2xl font-bold text-navy-900">Featured Papers</h2>
-            <p className="text-sm text-gray-500 mt-1">Most viewed publications on the platform</p>
+            <h2 className="text-2xl font-bold text-navy-900 dark:text-white">Featured Papers</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Most viewed publications on the platform</p>
           </div>
           <Link to="/browse" className="text-accent hover:underline text-sm font-medium">
             View All &rarr;
@@ -178,19 +178,19 @@ export default function Home() {
             : papers.map((paper) => <PaperCard key={paper.id} paper={paper} />)
           }
           {!loading && papers.length === 0 && (
-            <p className="col-span-3 text-center text-gray-400 py-12">No papers published yet.</p>
+            <p className="col-span-3 text-center text-gray-400 dark:text-gray-500 py-12">No papers published yet.</p>
           )}
         </div>
       </section>
 
       {/* Latest Blogs */}
       {!loading && blogs.length > 0 && (
-        <section className="bg-gray-50 border-y border-gray-200">
+        <section className="bg-gray-50 dark:bg-gray-900 border-y border-gray-200 dark:border-gray-700">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
             <div className="flex items-center justify-between mb-8">
               <div>
-                <h2 className="text-2xl font-bold text-navy-900">Latest Blog Posts</h2>
-                <p className="text-sm text-gray-500 mt-1">Recent insights from the research community</p>
+                <h2 className="text-2xl font-bold text-navy-900 dark:text-white">Latest Blog Posts</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Recent insights from the research community</p>
               </div>
               <Link to="/browse?type=blogs" className="text-accent hover:underline text-sm font-medium">
                 View All &rarr;
@@ -201,7 +201,7 @@ export default function Home() {
                 <Link
                   key={blog.id}
                   to={`/blogs/${blog.slug}`}
-                  className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 group"
+                  className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 group"
                 >
                   {blog.cover_image_url ? (
                     <img src={blog.cover_image_url} alt={blog.title} className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300" />
@@ -214,9 +214,9 @@ export default function Home() {
                     {blog.category && (
                       <span className="text-xs font-medium text-accent bg-accent-light px-2 py-1 rounded-full">{blog.category}</span>
                     )}
-                    <h3 className="font-semibold text-navy-900 mt-2 mb-1 line-clamp-2 group-hover:text-accent transition-colors">{blog.title}</h3>
-                    <p className="text-xs text-gray-500 mt-1 line-clamp-2">{blog.content?.substring(0, 120)}</p>
-                    <p className="text-xs text-gray-400 mt-2">By {blog.author_name} &middot; {blog.published_at?.slice(0, 10)}</p>
+                    <h3 className="font-semibold text-navy-900 dark:text-white mt-2 mb-1 line-clamp-2 group-hover:text-accent transition-colors">{blog.title}</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{blog.content?.substring(0, 120)}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">By {blog.author_name} &middot; {blog.published_at?.slice(0, 10)}</p>
                   </div>
                 </Link>
               ))}
@@ -232,20 +232,20 @@ function PaperCard({ paper }) {
   return (
     <Link
       to={`/papers/${paper.id}`}
-      className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 group"
+      className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 group"
     >
       <span className="text-xs font-medium text-accent bg-accent-light px-2.5 py-1 rounded-full inline-block mb-3">
         {paper.category_name || 'Uncategorized'}
       </span>
-      <h3 className="font-semibold text-navy-900 mb-2 line-clamp-2 leading-snug group-hover:text-accent transition-colors">
+      <h3 className="font-semibold text-navy-900 dark:text-white mb-2 line-clamp-2 leading-snug group-hover:text-accent transition-colors">
         {paper.title}
       </h3>
-      <p className="text-sm text-gray-500 mb-3 line-clamp-2 leading-relaxed">{paper.abstract}</p>
-      <p className="text-xs text-gray-400">
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 line-clamp-2 leading-relaxed">{paper.abstract}</p>
+      <p className="text-xs text-gray-400 dark:text-gray-500">
         {paper.authors?.length > 40 ? paper.authors.substring(0, 40) + ' et al.' : paper.authors}
         {paper.institution && ` \u00b7 ${paper.institution}`}
       </p>
-      <p className="text-xs text-gray-300 mt-2">Published {paper.published_at?.slice(0, 10)}</p>
+      <p className="text-xs text-gray-300 dark:text-gray-500 mt-2">Published {paper.published_at?.slice(0, 10)}</p>
     </Link>
   );
 }
