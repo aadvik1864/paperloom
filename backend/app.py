@@ -21,6 +21,12 @@ def create_app(config_class=Config):
     # Import models so db.create_all() works
     import models  # noqa: F401
     
+    # Auto-create tables and seed data on startup
+    with app.app_context():
+        db.create_all()
+        from database.seed import seed_database
+        seed_database()
+    
     # CLI commands
     @app.cli.command("seed")
     def seed_command():
