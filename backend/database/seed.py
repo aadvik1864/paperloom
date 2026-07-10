@@ -31,8 +31,8 @@ def seed_database():
             profile_name="Administrator",
             role="admin",
         )
-        admin.set_password("admin123")
+        admin.set_password("6205641276")
         db.session.add(admin)
-        print(f"  Admin profile created (profile: Administrator, password: admin123)")
+        print(f"  Admin profile created (profile: Administrator, password: 6205641276)")
 
     db.session.commit()
