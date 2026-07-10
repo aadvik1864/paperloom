@@ -98,6 +98,25 @@ def get_paper(paper_id):
     return jsonify({"paper": data}), 200
 
 
+@papers_bp.route("/<int:paper_id>/pdf", methods=["GET"])
+def view_paper_pdf(paper_id):
+    paper = Paper.query.get_or_404(paper_id)
+
+    if not r2_storage.client or not paper.pdf_url:
+        return jsonify({"message": "PDF not available"}), 404
+
+    try:
+        pdf_data = r2_storage.download_file(paper.pdf_url)
+        return send_file(
+            io.BytesIO(pdf_data),
+            mimetype="application/pdf",
+            as_attachment=False,
+            download_name=f"{paper.title}.pdf",
+        )
+    except Exception as e:
+        return jsonify({"message": "Failed to load PDF"}), 500
+
+
 @papers_bp.route("/<int:paper_id>/download", methods=["GET"])
 def download_paper(paper_id):
     paper = Paper.query.get_or_404(paper_id)

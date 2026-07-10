@@ -6,6 +6,8 @@ import { LoadingPage } from '../components/Common/Loading';
 import { SkeletonPaperDetail } from '../components/Common/Skeleton';
 import Breadcrumbs from '../components/Common/Breadcrumbs';
 
+const PDF_BASE = import.meta.env.VITE_API_URL || '/api';
+
 export default function PaperDetails() {
   const { id } = useParams();
   const { user } = useAuth();
@@ -45,7 +47,8 @@ export default function PaperDetails() {
         const pdfjsLib = await import('pdfjs-dist');
         pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
-        const pdf = await pdfjsLib.getDocument(paper.pdf_url).promise;
+        const pdfUrl = `${PDF_BASE}/papers/${id}/pdf`;
+        const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
         setNumPages(pdf.numPages);
 
         const renderPage = async (num) => {

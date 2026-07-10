@@ -64,6 +64,12 @@ class R2Storage:
             ExpiresIn=3600,
         )
 
+    def download_file(self, key):
+        if not self.client:
+            raise RuntimeError("R2 storage is not configured")
+        response = self.client.get_object(Bucket=self.bucket, Key=key)
+        return response["Body"].read()
+
     def delete_file(self, key):
         if not self.client:
             raise RuntimeError("R2 storage is not configured")
