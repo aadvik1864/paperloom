@@ -104,8 +104,6 @@ Run the dev server:
 npm run dev
 ```
 
-The frontend starts at **http://localhost:5173**.
-
 ### Production Build
 
 ```bash
