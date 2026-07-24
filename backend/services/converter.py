@@ -26,7 +26,7 @@ class DocumentConverter:
 
         tmp_dir = tempfile.mkdtemp()
         input_path = os.path.join(tmp_dir, f"input{ext}")
-        output_path = os.path.join(tmp_dir, f"output.pdf")
+        output_path = None
 
         try:
             file_obj.seek(0)
@@ -46,9 +46,11 @@ class DocumentConverter:
                 timeout=120,
             )
 
-            if result.returncode != 0 or not os.path.exists(output_path):
+            pdf_files = [f for f in os.listdir(tmp_dir) if f.endswith(".pdf")]
+            if result.returncode != 0 or not pdf_files:
                 raise RuntimeError(f"LibreOffice conversion failed (exit {result.returncode}): {result.stderr or 'unknown error'}")
 
+            output_path = os.path.join(tmp_dir, pdf_files[0])
             with open(output_path, "rb") as f:
                 pdf_data = f.read()
 
@@ -63,7 +65,7 @@ class DocumentConverter:
         finally:
             for path in [input_path, output_path]:
                 try:
-                    if os.path.exists(path):
+                    if path and os.path.exists(path):
                         os.remove(path)
                 except OSError:
                     pass
