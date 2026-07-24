@@ -47,7 +47,7 @@ class DocumentConverter:
             )
 
             if result.returncode != 0 or not os.path.exists(output_path):
-                raise RuntimeError(f"LibreOffice conversion failed: {result.stderr}")
+                raise RuntimeError(f"LibreOffice conversion failed (exit {result.returncode}): {result.stderr or 'unknown error'}")
 
             with open(output_path, "rb") as f:
                 pdf_data = f.read()

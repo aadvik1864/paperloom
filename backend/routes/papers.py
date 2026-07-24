@@ -164,7 +164,7 @@ def create_paper():
     # Convert DOCX to PDF if needed
     try:
         pdf_file = converter.convert_to_pdf(file)
-    except (ValueError, RuntimeError) as e:
+    except (ValueError, RuntimeError, FileNotFoundError, OSError) as e:
         return jsonify({"message": str(e)}), 400
 
     # Upload to R2
