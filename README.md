@@ -142,9 +142,8 @@ npm run build    # outputs to frontend/dist/
 ### Docker
 
 ```bash
-cd backend
-docker build -t paperloom-backend .
-docker run -p 5000:5000 --env-file .env paperloom-backend
+docker build -f backend/Dockerfile -t paperloom-backend .
+docker run -p 5000:5000 --env-file backend/.env paperloom-backend
 ```
 
 ## API Routes
@@ -162,8 +161,11 @@ docker run -p 5000:5000 --env-file .env paperloom-backend
 
 The project includes a `render.yaml` blueprint for one-click Render deployment:
 
-- **Backend**: Docker-based web service with PostgreSQL
-- **Frontend**: Static site built from Vite output
+- **Website and API**: The Docker web service builds the frontend and serves it
+  alongside `/api`, so both can use the same hostname. Set its Dockerfile path to
+  `./backend/Dockerfile`, Docker build context to the repository root, and leave
+  the Render Root Directory empty. The bundled frontend uses `/api` directly.
+- **Optional separate frontend**: Static site built from Vite output
 
 Before the production backend can start, configure `RATELIMIT_STORAGE_URI` to a
 shared Redis/Key Value `redis://` or `rediss://` URL and `CORS_ORIGINS` to the
