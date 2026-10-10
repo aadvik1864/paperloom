@@ -3,7 +3,7 @@ services:
     name: paperloom-backend
     env: docker
     dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
+    dockerContext: .
     repo: https://github.com/aadvik1864/paperloom
     branch: main
     healthCheckPath: /health
