@@ -1,11 +1,13 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from extensions import db
+from extensions import db, limiter
 from models.user import User
 from models.paper import Paper
 from models.blog import Blog
 from models.interactions import Bookmark
 from services.r2_storage import r2_storage
+from utils.security import visible_query, json_object, text_field, safe_url, normalize_profile_name
+from services.converter import validate_avatar
 
 users_bp = Blueprint("users", __name__)
 
@@ -17,14 +19,15 @@ def get_profile(user_id):
 
 
 @users_bp.route("/<int:user_id>/papers", methods=["GET"])
+@jwt_required(optional=True)
 def get_user_papers(user_id):
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 20, type=int)
     status = request.args.get("status", "published")
 
-    query = Paper.query.filter_by(primary_author_id=user_id, status=status)
+    query = visible_query(Paper.query.filter_by(primary_author_id=user_id), Paper, Paper.primary_author_id, status)
     query = query.order_by(Paper.published_at.desc())
-    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    pagination = query.paginate(page=page, per_page=per_page, max_per_page=50, error_out=False)
 
     return jsonify({
         "papers": [p.to_dict() for p in pagination.items],
@@ -35,14 +38,15 @@ def get_user_papers(user_id):
 
 
 @users_bp.route("/<int:user_id>/blogs", methods=["GET"])
+@jwt_required(optional=True)
 def get_user_blogs(user_id):
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 20, type=int)
     status = request.args.get("status", "published")
 
-    query = Blog.query.filter_by(author_id=user_id, status=status)
+    query = visible_query(Blog.query.filter_by(author_id=user_id), Blog, Blog.author_id, status)
     query = query.order_by(Blog.published_at.desc())
-    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    pagination = query.paginate(page=page, per_page=per_page, max_per_page=50, error_out=False)
 
     return jsonify({
         "blogs": [b.to_dict() for b in pagination.items],
@@ -54,24 +58,35 @@ def get_user_blogs(user_id):
 
 @users_bp.route("/profile", methods=["PUT"])
 @jwt_required()
+@limiter.limit("30 per hour")
 def update_profile():
     user_id = int(get_jwt_identity())
     user = User.query.get_or_404(user_id)
 
-    data = request.get_json() or {}
+    data = request.form.to_dict() if request.mimetype == "multipart/form-data" else json_object()
 
     editable = ["profile_name", "bio", "institution", "department", "website", "google_scholar", "linkedin", "researchgate"]
     for field in editable:
         if field in data:
-            setattr(user, field, data[field].strip())
+            value = text_field(data, field, max_length=5000 if field == "bio" else (150 if field == "profile_name" else 255))
+            if field in {"website", "google_scholar", "linkedin", "researchgate"}:
+                value = safe_url(value)
+            if field == "profile_name":
+                value = normalize_profile_name(value)
+                duplicate = User.query.filter(User.profile_name == value, User.id != user.id).first()
+                if duplicate:
+                    return jsonify({"message": "That profile name is already in use."}), 400
+            setattr(user, field, value)
 
     # Handle profile photo upload separately
     if "profile_photo" in request.files:
         file = request.files["profile_photo"]
         if file.filename:
             try:
-                key = r2_storage.upload_file(file, folder="avatars")
+                key = r2_storage.upload_file(validate_avatar(file), folder="avatars")
                 user.profile_photo_url = key
+            except ValueError as e:
+                return jsonify({"message": str(e)}), 400
             except RuntimeError as e:
                 return jsonify({"message": str(e)}), 500
 
@@ -113,9 +128,10 @@ def get_dashboard():
 def get_bookmarks():
     user_id = int(get_jwt_identity())
     bookmarks = Bookmark.query.filter_by(user_id=user_id).order_by(Bookmark.created_at.desc()).all()
+    user = db.session.get(User, user_id)
     papers = []
     for bm in bookmarks:
-        if bm.paper:
+        if bm.paper and (bm.paper.status == "published" or bm.paper.primary_author_id == user_id or user.role == "admin"):
             paper_data = bm.paper.to_dict()
             papers.append(paper_data)
     return jsonify({"bookmarks": papers}), 200

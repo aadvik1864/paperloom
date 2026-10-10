@@ -6,6 +6,7 @@ from models.paper import Paper, Category
 from models.blog import Blog
 from utils.decorators import role_required
 from services.r2_storage import r2_storage
+from utils.security import json_object, text_field, validate_password, normalize_profile_name
 
 admin_bp = Blueprint("admin", __name__)
 
@@ -14,17 +15,19 @@ admin_bp = Blueprint("admin", __name__)
 @jwt_required()
 @role_required("admin")
 def create_user():
-    data = request.get_json() or {}
+    data = json_object()
 
-    profile_name = data.get("profile_name", "").strip()
+    profile_name = normalize_profile_name(data.get("profile_name", ""))
     password = data.get("password", "")
-    role = data.get("role", "visitor").strip()
+    role = text_field(data, "role", "visitor")
 
     if not profile_name or not password:
         return jsonify({"message": "Profile name and password are required."}), 400
 
-    if len(password) < 6:
-        return jsonify({"message": "Password must be at least 6 characters."}), 400
+    try:
+        validate_password(password)
+    except ValueError as error:
+        return jsonify({"message": str(error)}), 400
 
     if role not in ("visitor", "author", "admin"):
         return jsonify({"message": "Invalid role."}), 400
@@ -57,7 +60,7 @@ def list_users():
         query = query.filter(User.profile_name.ilike(term))
 
     query = query.order_by(User.created_at.desc())
-    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    pagination = query.paginate(page=page, per_page=per_page, max_per_page=50, error_out=False)
 
     return jsonify({
         "users": [u.to_dict() for u in pagination.items],
@@ -80,11 +83,13 @@ def get_user(user_id):
 @role_required("admin")
 def admin_set_password(user_id):
     user = User.query.get_or_404(user_id)
-    data = request.get_json() or {}
+    data = json_object()
 
     new_password = data.get("password", "")
-    if len(new_password) < 6:
-        return jsonify({"message": "Password must be at least 6 characters."}), 400
+    try:
+        validate_password(new_password)
+    except ValueError as error:
+        return jsonify({"message": str(error)}), 400
 
     user.set_password(new_password)
     db.session.commit()
@@ -96,9 +101,9 @@ def admin_set_password(user_id):
 @role_required("admin")
 def update_user_role(user_id):
     user = User.query.get_or_404(user_id)
-    data = request.get_json() or {}
+    data = json_object()
 
-    new_role = data.get("role", "").strip()
+    new_role = text_field(data, "role")
     if new_role not in ("visitor", "author", "admin"):
         return jsonify({"message": "Invalid role."}), 400
 
@@ -133,7 +138,7 @@ def list_all_papers():
         query = query.filter_by(status=status)
 
     query = query.order_by(Paper.created_at.desc())
-    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    pagination = query.paginate(page=page, per_page=per_page, max_per_page=50, error_out=False)
 
     return jsonify({
         "papers": [p.to_dict() for p in pagination.items],
@@ -182,7 +187,7 @@ def list_all_blogs():
         query = query.filter_by(status=status)
 
     query = query.order_by(Blog.created_at.desc())
-    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    pagination = query.paginate(page=page, per_page=per_page, max_per_page=50, error_out=False)
 
     return jsonify({
         "blogs": [b.to_dict() for b in pagination.items],

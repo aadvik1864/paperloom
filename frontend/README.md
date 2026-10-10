@@ -1,16 +1,29 @@
-# React + Vite
+# Paperloom frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The React interface for Paperloom's research library, community blogs, and
+author/admin dashboards. Built with Vite, TailwindCSS, and React Router.
 
-Currently, two official plugins are available:
+## Development
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Use Node.js 22.12+ (or a newer supported release).
 
-## React Compiler
+```bash
+npm ci
+npm run dev
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+The development server proxies `/api` to `http://localhost:5000`. Set
+`VITE_API_URL` in `.env` to use another backend; see `.env.example`.
 
-## Expanding the Oxlint configuration
+```bash
+npm run build
+npm run lint
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## UI components
+
+React Bits' BlurText and SpotlightCard are adapted in
+`src/components/ReactBits/`, with reduced-motion support and shared styles in
+`src/index.css`. Publication cards are reused across the home and browse pages.
+The original license and attribution are in `public/third-party-licenses.txt`
+and are included in production builds.

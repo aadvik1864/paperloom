@@ -1,289 +1,230 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import Pagination from '../components/Common/Pagination';
 import Breadcrumbs from '../components/Common/Breadcrumbs';
-import { SkeletonCard } from '../components/Common/Skeleton';
+import { SkeletonCard, SkeletonBlogCard } from '../components/Common/Skeleton';
+import PublicationCard from '../components/Common/PublicationCard';
+import Icon from '../components/Common/Icon';
 
-const SORT_OPTIONS = {
-  newest: { label: 'Newest First', field: 'published_at', dir: 'desc' },
-  oldest: { label: 'Oldest First', field: 'published_at', dir: 'asc' },
-  most_viewed: { label: 'Most Viewed', field: 'view_count', dir: 'desc' },
-  most_downloaded: { label: 'Most Downloaded', field: 'download_count', dir: 'desc' },
-};
+const SORT_OPTIONS = { newest: 'Newest first', oldest: 'Oldest first', most_viewed: 'Most viewed', most_downloaded: 'Most downloaded' };
 
 export default function Browse() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [papers, setPapers] = useState([]);
-  const [blogs, setBlogs] = useState([]);
+  const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [total, setTotal] = useState(0);
   const [pages, setPages] = useState(1);
-
-  const type = searchParams.get('type') || 'papers';
-  const page = parseInt(searchParams.get('page') || '1');
+  const type = searchParams.get('type') === 'blogs' ? 'blogs' : 'papers';
+  const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
   const search = searchParams.get('search') || '';
+  const [searchDraft, setSearchDraft] = useState(search);
+  const view = searchParams.get('view') === 'list' ? 'list' : 'grid';
   const categoryId = searchParams.get('category_id') || '';
-  const sort = searchParams.get('sort') || 'newest';
+  const requestedSort = searchParams.get('sort') || 'newest';
+  const sort = Object.hasOwn(SORT_OPTIONS, requestedSort) ? requestedSort : 'newest';
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      if (type === 'blogs') {
-        const params = { page, per_page: 12 };
-        if (search) params.search = search;
-
-        const res = await api.get('/blogs', { params });
-        setBlogs(res.data.blogs || []);
-        setTotal(res.data.total ?? 0);
-        setPages(res.data.pages ?? 1);
-      } else {
-        const params = { page, per_page: 12, sort };
-        if (search) params.search = search;
-        if (categoryId) params.category_id = categoryId;
-
-        const res = await api.get('/papers', { params });
-        setPapers(res.data.papers || []);
-        setTotal(res.data.total ?? 0);
-        setPages(res.data.pages ?? 1);
-      }
-    } catch (err) {
-      console.error('Browse fetch error:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [type, page, search, categoryId, sort]);
+  useEffect(() => { setSearchDraft(search); }, [search]);
 
   useEffect(() => {
-    api.get('/papers/categories').then((res) => setCategories(res.data.categories || [])).catch(() => {});
+    if (searchDraft === search) return;
+    const timeout = setTimeout(() => {
+      setSearchParams((previous) => {
+        const next = new URLSearchParams(previous);
+        if (searchDraft.trim()) next.set('search', searchDraft.trim());
+        else next.delete('search');
+        next.delete('page');
+        return next;
+      }, { replace: true });
+    }, 350);
+    return () => clearTimeout(timeout);
+  }, [searchDraft, search, setSearchParams]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    api.get('/papers/categories', { signal: controller.signal }).then((response) => setCategories(response.data.categories || [])).catch(() => {});
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {
+    const controller = new AbortController();
+    const fetchData = async () => {
+      setLoading(true);
+      setError(false);
+      try {
+        const params = { page, per_page: 12 };
+        if (search) params.search = search;
+        if (type === 'papers') {
+          params.sort = sort;
+          if (categoryId) params.category_id = categoryId;
+        }
+        const response = await api.get(`/${type}`, { params, signal: controller.signal });
+        if (controller.signal.aborted) return;
+        setItems(response.data[type] || []);
+        setTotal(response.data.total ?? 0);
+        setPages(response.data.pages ?? 1);
+      } catch {
+        if (!controller.signal.aborted) {
+          setError(true);
+          setItems([]);
+          setTotal(0);
+          setPages(1);
+        }
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    };
     fetchData();
-  }, [fetchData]);
+    return () => controller.abort();
+  }, [type, page, search, categoryId, sort, attempt]);
 
   const updateParams = (updates) => {
-    const newParams = new URLSearchParams(searchParams);
+    const next = new URLSearchParams(searchParams);
     Object.entries(updates).forEach(([key, value]) => {
-      if (value) newParams.set(key, value);
-      else newParams.delete(key);
+      if (value) next.set(key, value);
+      else next.delete(key);
     });
-    setSearchParams(newParams);
+    setSearchParams(next);
   };
+  const filters = { type, search: searchDraft, setSearchDraft, categoryId, sort, categories, updateParams };
+  const hasFilters = Boolean(search || (type === 'papers' && (categoryId || sort !== 'newest')));
+  const clearFilters = () => { setSearchDraft(''); updateParams({ search: '', category_id: '', sort: '', page: '' }); };
+  const selectedCategory = categories.find((category) => String(category.id) === categoryId);
+  const Skeleton = type === 'blogs' ? SkeletonBlogCard : SkeletonCard;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <Breadcrumbs items={[
-        { label: type === 'blogs' ? 'Blogs' : 'Papers' },
-      ]} />
-
-      <div className="flex gap-8">
-        {/* Sidebar Filters */}
-        <aside className="hidden lg:block w-64 flex-shrink-0">
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-6 sticky top-20">
-            {/* Search */}
-            <div>
-              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Search</label>
-              <input
-                type="text"
-                placeholder={type === 'blogs' ? 'Search blogs...' : 'Search papers...'}
-                value={search}
-                onChange={(e) => updateParams({ search: e.target.value, page: '1' })}
-                className="w-full mt-2 px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent focus:border-accent"
-              />
+    <div className="page-container browse-page">
+      <Breadcrumbs items={[{ label: type === 'blogs' ? 'Blogs' : 'Papers' }]} />
+      <div className="browse-heading">
+        <div>
+          <h1>{type === 'blogs' ? 'Find your next perspective.' : 'Explore the research library.'}</h1>
+          <p>{search ? `Results for “${search}”` : type === 'blogs'
+            ? 'Ideas, observations, and conversations from the research community.'
+            : 'Follow your curiosity across disciplines, authors, and ideas.'}
+          </p>
+        </div>
+        <span className="browse-count" role="status">
+          {loading ? 'Loading the library…' : error ? 'Library unavailable'
+            : `${total} ${type === 'blogs' ? 'post' : 'paper'}${total === 1 ? '' : 's'}`}
+        </span>
+      </div>
+      <FilterFields {...filters} mobile />
+      <div className="browse-layout">
+        <aside aria-label="Filter the library"><FilterFields {...filters} /></aside>
+        <div className="browse-results" aria-busy={loading}>
+          <div className="library-toolbar">
+            <div className="filter-chips" aria-label="Active filters">
+              {search && <button className="filter-chip" onClick={() => { setSearchDraft(''); updateParams({ search: '', page: '' }); }} aria-label={`Remove search ${search}`}><span>“{search}”</span><Icon name="close" /></button>}
+              {type === 'papers' && categoryId && <button className="filter-chip" onClick={() => updateParams({ category_id: '', page: '' })} aria-label="Remove discipline filter"><span>{selectedCategory?.name || 'Discipline'}</span><Icon name="close" /></button>}
+              {type === 'papers' && sort !== 'newest' && <button className="filter-chip" onClick={() => updateParams({ sort: '', page: '' })} aria-label="Reset sort order"><span>{SORT_OPTIONS[sort]}</span><Icon name="close" /></button>}
+              {hasFilters ? <button className="clear-filters" onClick={clearFilters}>Clear all</button> : <span className="library-toolbar__hint">A little curiosity goes a long way.</span>}
             </div>
-
-            {/* Type toggle */}
-            <div>
-              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Content Type</label>
-              <div className="mt-2 space-y-2">
-                <button
-                  onClick={() => updateParams({ type: 'papers', page: '1' })}
-                  className={`block w-full text-left px-3 py-2 text-sm rounded-lg transition ${
-                    type === 'papers' ? 'bg-accent text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  Papers
-                </button>
-                <button
-                  onClick={() => updateParams({ type: 'blogs', page: '1' })}
-                  className={`block w-full text-left px-3 py-2 text-sm rounded-lg transition ${
-                    type === 'blogs' ? 'bg-accent text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  Blog Posts
-                </button>
-              </div>
-            </div>
-
-            {/* Categories (papers only) */}
-            {type === 'papers' && (
-              <div>
-                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Category</label>
-                <div className="mt-2 space-y-1 max-h-48 overflow-y-auto">
-                  <button
-                    onClick={() => updateParams({ category_id: '', page: '1' })}
-                    className={`block w-full text-left px-3 py-1.5 text-sm rounded transition ${
-                      !categoryId ? 'text-accent font-medium' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
-                    }`}
-                  >
-                    All Categories
-                  </button>
-                  {categories.map((cat) => (
-                    <button
-                      key={cat.id}
-                      onClick={() => updateParams({ category_id: String(cat.id), page: '1' })}
-                      className={`block w-full text-left px-3 py-1.5 text-sm rounded transition ${
-                        categoryId === String(cat.id) ? 'text-accent font-medium' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
-                      }`}
-                    >
-                      {cat.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Sort */}
-            <div>
-              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Sort By</label>
-              <select
-                value={sort}
-                onChange={(e) => updateParams({ sort: e.target.value, page: '1' })}
-                className="w-full mt-2 px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent"
-              >
-                {Object.entries(SORT_OPTIONS).map(([key, opt]) => {
-                  if (type === 'blogs' && (key === 'most_viewed' || key === 'most_downloaded')) return null;
-                  return <option key={key} value={key}>{opt.label}</option>;
-                })}
-              </select>
+            <div className="view-switch" role="group" aria-label="Result layout">
+              <button onClick={() => updateParams({ view: '' })} aria-label="Grid view" aria-pressed={view === 'grid'}><Icon name="grid" /></button>
+              <button onClick={() => updateParams({ view: 'list' })} aria-label="List view" aria-pressed={view === 'list'}><Icon name="list" /></button>
             </div>
           </div>
-        </aside>
-
-        {/* Mobile filters bar */}
-        <div className="lg:hidden flex flex-wrap gap-2 mb-4 w-full">
-          <input
-            type="text"
-            placeholder="Search..."
-            value={search}
-            onChange={(e) => updateParams({ search: e.target.value, page: '1' })}
-            className="flex-1 min-w-0 px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none"
-          />
-          <select
-            value={type}
-            onChange={(e) => updateParams({ type: e.target.value, page: '1' })}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none"
-          >
-            <option value="papers">Papers</option>
-            <option value="blogs">Blogs</option>
-          </select>
-          {type === 'papers' && (
-            <select
-              value={categoryId}
-              onChange={(e) => updateParams({ category_id: e.target.value, page: '1' })}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none"
-            >
-              <option value="">All Categories</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
-              ))}
-            </select>
-          )}
-          <select
-            value={sort}
-            onChange={(e) => updateParams({ sort: e.target.value, page: '1' })}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none"
-          >
-            {Object.entries(SORT_OPTIONS).map(([key, opt]) => {
-              if (type === 'blogs' && (key === 'most_viewed' || key === 'most_downloaded')) return null;
-              return <option key={key} value={key}>{opt.label}</option>;
-            })}
-          </select>
-        </div>
-
-        {/* Results */}
-        <div className="flex-1 min-w-0">
-          {search && (
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-              {total} result{total !== 1 ? 's' : ''} for &quot;{search}&quot;
-            </p>
-          )}
-
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+            <div className="publication-grid">
+              {Array.from({ length: 6 }, (_, index) => <Skeleton key={index} />)}
             </div>
-          ) : type === 'blogs' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {blogs.map((blog) => (
-                <Link
-                  key={blog.id}
-                  to={`/blogs/${blog.slug}`}
-                  className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 group"
-                >
-                  {blog.cover_image_url ? (
-                    <img src={blog.cover_image_url} alt={blog.title} className="w-full h-44 object-cover group-hover:scale-105 transition-transform duration-300" />
-                  ) : (
-                    <div className="w-full h-44 bg-gradient-to-br from-navy-100 to-navy-50 flex items-center justify-center">
-                      <span className="text-navy-300 text-4xl font-bold">AQ</span>
-                    </div>
-                  )}
-                  <div className="p-5">
-                    {blog.category && (
-                      <span className="text-xs font-medium text-accent bg-accent-light px-2 py-1 rounded-full">
-                        {blog.category}
-                      </span>
-                    )}
-                    <h3 className="font-semibold text-navy-900 dark:text-white mt-2 mb-1 line-clamp-2 group-hover:text-accent transition-colors">{blog.title}</h3>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 line-clamp-2">{blog.content?.substring(0, 120)}</p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
-                      By {blog.author_name} &middot; {blog.published_at?.slice(0, 10)}
-                    </p>
-                  </div>
-                </Link>
-              ))}
-              {blogs.length === 0 && (
-                <div className="col-span-2 text-center py-20 text-gray-500 dark:text-gray-400">No blogs found.</div>
-              )}
+          ) : error ? (
+            <div className="content-empty" role="alert">
+              <Icon name="book" />
+              <h2>The library couldn’t load</h2>
+              <p>Check your connection and try again. Your search and filters are saved.</p>
+              <button onClick={() => setAttempt((value) => value + 1)} className="button button--secondary">Try again</button>
             </div>
+          ) : items.length ? (
+            <>
+              <div className={view === 'list' ? 'publication-list' : 'publication-grid'}>
+                {items.map((item) => <PublicationCard key={item.id} {...(type === 'blogs' ? { blog: item } : { paper: item })} />)}
+              </div>
+              <Pagination page={page} pages={pages} onPageChange={(nextPage) => updateParams({ page: String(nextPage) })} />
+            </>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {papers.map((paper) => (
-                <Link
-                  key={paper.id}
-                  to={`/papers/${paper.id}`}
-                  className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 group"
-                >
-                  <div className="flex items-center space-x-2 mb-3">
-                    <span className="text-xs font-medium text-accent bg-accent-light px-2.5 py-1 rounded-full">
-                      {paper.category_name || 'Uncategorized'}
-                    </span>
-                  </div>
-                  <h3 className="font-semibold text-navy-900 dark:text-white mb-2 line-clamp-2 leading-snug group-hover:text-accent transition-colors">
-                    {paper.title}
-                  </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 line-clamp-2 leading-relaxed">{paper.abstract}</p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500">
-                    {paper.authors && paper.authors.length > 40
-                      ? paper.authors.substring(0, 40) + ' et al.'
-                      : paper.authors
-                    }
-                    {paper.institution && ` \u00b7 ${paper.institution}`}
-                  </p>
-                  <p className="text-xs text-gray-300 dark:text-gray-500 mt-2">{paper.published_at?.slice(0, 10)}</p>
-                </Link>
-              ))}
-              {papers.length === 0 && (
-                <div className="col-span-2 text-center py-20 text-gray-500 dark:text-gray-400">No papers found.</div>
+            <div className="content-empty">
+              <Icon name={type === 'blogs' ? 'pen' : 'book'} />
+              <h2>{hasFilters ? 'No matches just yet' : type === 'blogs' ? 'The conversation is just beginning' : 'The library is growing'}</h2>
+              <p>{hasFilters
+                ? 'Try a different keyword or clear your filters to explore the rest of the library.'
+                : `Published ${type === 'blogs' ? 'blog posts' : 'research papers'} will appear here as authors share their work.`}
+              </p>
+              {hasFilters && (
+                <button onClick={clearFilters} className="button button--secondary">Clear filters</button>
               )}
             </div>
           )}
-
-          <Pagination page={page} pages={pages} onPageChange={(p) => updateParams({ page: String(p) })} />
         </div>
       </div>
+    </div>
+  );
+}
+
+function FilterFields({ mobile = false, type, search, setSearchDraft, categoryId, sort, categories, updateParams }) {
+  const suffix = mobile ? 'mobile' : 'desktop';
+  return (
+    <div className={mobile ? 'mobile-filters' : 'browse-filters'}>
+      <div className={mobile ? 'mobile-filter-search' : ''}>
+        <label htmlFor={`library-search-${suffix}`} className="filter-label">Search the library</label>
+        <input
+          id={`library-search-${suffix}`}
+          type="search"
+          value={search}
+          onChange={(event) => setSearchDraft(event.target.value)}
+          onKeyDown={(event) => { if (event.key === 'Enter') updateParams({ search: search.trim(), page: '' }); }}
+          maxLength={200}
+          placeholder={type === 'blogs' ? 'Title or keyword' : 'Title, author, or keyword'}
+          className="filter-input"
+        />
+      </div>
+      {mobile ? (
+        <div>
+          <label htmlFor="library-type-mobile" className="filter-label">Content</label>
+          <select id="library-type-mobile" value={type} onChange={(event) => updateParams({ type: event.target.value, category_id: '', page: '1' })} className="filter-input">
+            <option value="papers">Research papers</option>
+            <option value="blogs">Blog posts</option>
+          </select>
+        </div>
+      ) : (
+        <fieldset>
+          <legend className="filter-label">Content</legend>
+          <button onClick={() => updateParams({ type: 'papers', page: '1' })} className={`filter-choice ${type === 'papers' ? 'filter-choice--active' : ''}`} aria-pressed={type === 'papers'}>Research papers</button>
+          <button onClick={() => updateParams({ type: 'blogs', category_id: '', page: '1' })} className={`filter-choice ${type === 'blogs' ? 'filter-choice--active' : ''}`} aria-pressed={type === 'blogs'}>Blog posts</button>
+        </fieldset>
+      )}
+      {type === 'papers' && (mobile ? (
+        <div>
+          <label htmlFor="library-category-mobile" className="filter-label">Discipline</label>
+          <select id="library-category-mobile" value={categoryId} onChange={(event) => updateParams({ category_id: event.target.value, page: '1' })} className="filter-input">
+            <option value="">All disciplines</option>
+            {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+          </select>
+        </div>
+      ) : (
+        <fieldset>
+          <legend className="filter-label">Discipline</legend>
+          <div className="filter-categories">
+            <button onClick={() => updateParams({ category_id: '', page: '1' })} className={`filter-choice ${!categoryId ? 'filter-choice--active' : ''}`} aria-pressed={!categoryId}>All disciplines</button>
+            {categories.map((category) => (
+              <button key={category.id} onClick={() => updateParams({ category_id: String(category.id), page: '1' })} className={`filter-choice ${categoryId === String(category.id) ? 'filter-choice--active' : ''}`} aria-pressed={categoryId === String(category.id)}>
+                {category.name}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+      ))}
+      {type === 'papers' && (
+        <div className={mobile ? 'mobile-filter-sort' : ''}>
+          <label htmlFor={`library-sort-${suffix}`} className="filter-label">Sort by</label>
+          <select id={`library-sort-${suffix}`} value={sort} onChange={(event) => updateParams({ sort: event.target.value, page: '1' })} className="filter-input">
+            {Object.entries(SORT_OPTIONS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        </div>
+      )}
     </div>
   );
 }

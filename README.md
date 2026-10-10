@@ -1,4 +1,6 @@
-# Al-Qwal Publications
+# Paperloom
+
+Repository: https://github.com/aadvik1864/paperloom
 
 A full-stack academic publication platform for browsing, downloading, and managing research papers and blog posts. Authors can submit papers, and admins can manage content through a dedicated dashboard.
 
@@ -38,7 +40,7 @@ React (Vite)  ──▶  Flask API  ──▶  PostgreSQL
 
 | Layer      | Technology                                          |
 |------------|-----------------------------------------------------|
-| Frontend   | React 19, Vite 8, TailwindCSS v4, React Router 7   |
+| Frontend   | React 19, Vite 8, TailwindCSS v4, React Router 7, React Bits, Motion |
 | Backend    | Python 3, Flask, SQLAlchemy, Flask-JWT-Extended     |
 | Database   | PostgreSQL (dev: SQLite)                            |
 | Storage    | Cloudflare R2 (S3-compatible)                       |
@@ -67,11 +69,17 @@ pip install -r requirements.txt
 Create `backend/.env`:
 
 ```env
-DATABASE_URL=postgresql://user:pass@localhost:5432/al_qwal_db
+DATABASE_URL=postgresql://user:pass@localhost:5432/paperloom_db
 # For local dev without PostgreSQL, omit DATABASE_URL to use SQLite
 
-SECRET_KEY=your-flask-secret
-JWT_SECRET_KEY=your-jwt-secret
+SECRET_KEY=<unique random value, at least 32 characters>
+JWT_SECRET_KEY=<different unique random value, at least 32 characters>
+FLASK_ENV=development
+CORS_ORIGINS=http://localhost:5173
+ADMIN_PROFILE_NAME=Administrator
+# Optional: creates the first administrator only when the database has no users.
+# Prefer `flask --app app bootstrap-admin` for an existing database.
+ADMIN_PASSWORD=
 
 R2_BUCKET_NAME=your-r2-bucket
 R2_ACCOUNT_ID=your-cloudflare-account-id
@@ -83,6 +91,26 @@ Run the backend:
 
 ```bash
 flask --app app run --debug
+```
+
+For an existing database, securely create/reset the administrator without
+putting a password in shell history:
+
+```bash
+flask --app app bootstrap-admin --profile Administrator
+```
+
+Passwords must be at least 12 characters and at most 72 UTF-8 bytes. Changing a
+password or role revokes existing sessions; access tokens expire after one hour.
+Office documents are converted only when LibreOffice, `prlimit`, and `bwrap`
+(Bubblewrap) are available; otherwise upload a validated PDF.
+
+Run the security regression suite and dependency audit with:
+
+```bash
+pip install -r requirements-dev.txt
+pytest -q
+pip-audit -r requirements.txt
 ```
 
 ### Frontend
@@ -115,8 +143,8 @@ npm run build    # outputs to frontend/dist/
 
 ```bash
 cd backend
-docker build -t al-qwal-backend .
-docker run -p 5000:5000 --env-file .env al-qwal-backend
+docker build -t paperloom-backend .
+docker run -p 5000:5000 --env-file .env paperloom-backend
 ```
 
 ## API Routes
@@ -136,6 +164,18 @@ The project includes a `render.yaml` blueprint for one-click Render deployment:
 
 - **Backend**: Docker-based web service with PostgreSQL
 - **Frontend**: Static site built from Vite output
+
+Before the production backend can start, configure `RATELIMIT_STORAGE_URI` to a
+shared Redis/Key Value `redis://` or `rediss://` URL and `CORS_ORIGINS` to the
+exact deployed frontend origin(s), e.g. `https://paperloom.example`. The
+Render blueprint intentionally prompts for these values; it does not silently
+enable wildcard CORS or single-process rate limits. Also set the frontend's
+`VITE_API_URL` to the deployed backend URL including `/api`.
+
+Set the frontend's `VITE_API_URL` to the actual deployed backend URL, including
+`/api`. Renaming the GitHub repository does not automatically rename deployed
+services, PostgreSQL databases, or R2 buckets. Keep existing infrastructure
+identifiers in private environment files until those resources are migrated.
 
 ## License
 

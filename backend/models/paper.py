@@ -57,7 +57,7 @@ class Paper(db.Model):
             "department": self.department,
             "category_id": self.category_id,
             "category_name": self.category.name if self.category else None,
-            "pdf_url": self.pdf_url,
+            "pdf_url": f"/api/papers/{self.id}/pdf",
             "status": self.status,
             "view_count": self.view_count,
             "download_count": self.download_count,

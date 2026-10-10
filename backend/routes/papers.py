@@ -1,15 +1,15 @@
-import os
 from flask import Blueprint, request, jsonify, send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from extensions import db
+from extensions import db, limiter
 from models.paper import Paper, Category
 from models.interactions import Bookmark, Citation
 from models.user import User
 from utils.decorators import role_required
 from services.r2_storage import r2_storage
 from services.converter import converter
-import tempfile
 import io
+from werkzeug.utils import secure_filename
+from utils.security import require_content_access, visible_query, json_object, text_field
 
 papers_bp = Blueprint("papers", __name__)
 
@@ -30,6 +30,7 @@ def generate_citations(paper):
 
 
 @papers_bp.route("", methods=["GET"])
+@jwt_required(optional=True)
 def list_papers():
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 20, type=int)
@@ -39,7 +40,7 @@ def list_papers():
     sort = request.args.get("sort", "newest")
     status = request.args.get("status", "published")
 
-    query = Paper.query.filter_by(status=status)
+    query = visible_query(Paper.query, Paper, Paper.primary_author_id, status)
 
     if category_id:
         query = query.filter_by(category_id=category_id)
@@ -66,7 +67,7 @@ def list_papers():
     else:
         query = query.order_by(Paper.published_at.desc())
 
-    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    pagination = query.paginate(page=page, per_page=per_page, max_per_page=50, error_out=False)
 
     return jsonify({
         "papers": [p.to_dict() for p in pagination.items],
@@ -83,8 +84,10 @@ def list_categories():
 
 
 @papers_bp.route("/<int:paper_id>", methods=["GET"])
+@jwt_required(optional=True)
 def get_paper(paper_id):
     paper = Paper.query.get_or_404(paper_id)
+    require_content_access(paper, paper.primary_author_id)
 
     paper.view_count += 1
     db.session.commit()
@@ -93,14 +96,16 @@ def get_paper(paper_id):
 
     data = paper.to_dict()
     data["citations"] = citations
-    data["pdf_url"] = r2_storage.get_url(paper.pdf_url) if r2_storage.client else paper.pdf_url
+    data["pdf_url"] = f"/api/papers/{paper.id}/pdf"
 
     return jsonify({"paper": data}), 200
 
 
 @papers_bp.route("/<int:paper_id>/pdf", methods=["GET"])
+@jwt_required(optional=True)
 def view_paper_pdf(paper_id):
     paper = Paper.query.get_or_404(paper_id)
+    require_content_access(paper, paper.primary_author_id)
 
     if not r2_storage.client or not paper.pdf_url:
         return jsonify({"message": "PDF not available"}), 404
@@ -110,36 +115,48 @@ def view_paper_pdf(paper_id):
         return send_file(
             io.BytesIO(pdf_data),
             mimetype="application/pdf",
-            as_attachment=False,
-            download_name=f"{paper.title}.pdf",
+            # PDF.js fetches bytes via XHR; direct navigation must not inline an
+            # untrusted legacy PDF into the application origin.
+            as_attachment=True,
+            download_name=f"{secure_filename(paper.title) or 'paper'}.pdf",
         )
-    except Exception as e:
+    except (RuntimeError, OSError):
         return jsonify({"message": "Failed to load PDF"}), 500
 
 
 @papers_bp.route("/<int:paper_id>/download", methods=["GET"])
+@jwt_required(optional=True)
 def download_paper(paper_id):
     paper = Paper.query.get_or_404(paper_id)
-
-    paper.download_count += 1
-    db.session.commit()
+    require_content_access(paper, paper.primary_author_id)
 
     if not r2_storage.client:
-        return jsonify({"message": "Storage not configured"}), 500
+        return jsonify({"message": "PDF download is unavailable."}), 503
+    if not paper.pdf_url:
+        return jsonify({"message": "PDF not available."}), 404
 
-    download_url = r2_storage.get_url(paper.pdf_url)
-    return jsonify({"download_url": download_url}), 200
+    try:
+        pdf_data = r2_storage.download_file(paper.pdf_url)
+    except (RuntimeError, OSError):
+        return jsonify({"message": "PDF download is unavailable."}), 503
+    paper.download_count += 1
+    db.session.commit()
+    return send_file(io.BytesIO(pdf_data), mimetype="application/pdf", as_attachment=True,
+                     download_name=f"{secure_filename(paper.title) or 'paper'}.pdf")
 
 
 @papers_bp.route("/<int:paper_id>/citations", methods=["GET"])
+@jwt_required(optional=True)
 def get_citations(paper_id):
     paper = Paper.query.get_or_404(paper_id)
+    require_content_access(paper, paper.primary_author_id)
     return jsonify({"citations": generate_citations(paper)}), 200
 
 
 @papers_bp.route("", methods=["POST"])
 @jwt_required()
 @role_required(["author", "admin"])
+@limiter.limit("20 per hour")
 def create_paper():
     user_id = int(get_jwt_identity())
 
@@ -156,22 +173,31 @@ def create_paper():
     keywords = request.form.get("keywords", "").strip()
     institution = request.form.get("institution", "").strip()
     department = request.form.get("department", "").strip()
-    category_id = request.form.get("category_id", type=int)
+    try:
+        category_id = int(request.form.get("category_id", ""))
+    except (TypeError, ValueError):
+        category_id = None
 
     if not title or not abstract or not authors or not category_id:
         return jsonify({"message": "Title, abstract, authors, and category are required."}), 400
+    if not db.session.get(Category, category_id):
+        return jsonify({"message": "Choose an existing category."}), 400
+    if any(len(value) > 255 for value in (title, keywords, institution, department)) or len(abstract) > 100000 or len(authors) > 5000:
+        return jsonify({"message": "Paper metadata exceeds the allowed length."}), 400
 
     # Convert DOCX to PDF if needed
     try:
         pdf_file = converter.convert_to_pdf(file)
-    except (ValueError, RuntimeError, FileNotFoundError, OSError) as e:
+    except RuntimeError:
+        return jsonify({"message": "Document conversion is unavailable. Upload a PDF instead."}), 503
+    except (ValueError, FileNotFoundError, OSError) as e:
         return jsonify({"message": str(e)}), 400
 
     # Upload to R2
     try:
         pdf_key = r2_storage.upload_file(pdf_file, folder="papers")
-    except RuntimeError as e:
-        return jsonify({"message": str(e)}), 500
+    except RuntimeError:
+        return jsonify({"message": "Paper storage is unavailable."}), 503
 
     paper = Paper(
         title=title,
@@ -197,6 +223,7 @@ def create_paper():
 @papers_bp.route("/<int:paper_id>", methods=["PUT"])
 @jwt_required()
 @role_required(["author", "admin"])
+@limiter.limit("20 per hour")
 def update_paper(paper_id):
     user_id = int(get_jwt_identity())
     paper = Paper.query.get_or_404(paper_id)
@@ -206,22 +233,32 @@ def update_paper(paper_id):
         if user.role != "admin":
             return jsonify({"message": "You can only edit your own papers."}), 403
 
-    data = request.form.to_dict() if request.form else (request.get_json() or {})
+    data = request.form.to_dict() if request.mimetype == "multipart/form-data" else json_object()
 
     if "title" in data:
-        paper.title = data["title"].strip()
+        paper.title = text_field(data, "title", max_length=255)
     if "abstract" in data:
-        paper.abstract = data["abstract"].strip()
+        paper.abstract = text_field(data, "abstract")
+        if len(paper.abstract) > 100000:
+            return jsonify({"message": "Abstract is too long."}), 400
     if "keywords" in data:
-        paper.keywords = data["keywords"].strip()
+        paper.keywords = text_field(data, "keywords", max_length=255)
     if "authors" in data:
-        paper.authors = data["authors"].strip()
+        paper.authors = text_field(data, "authors")
+        if len(paper.authors) > 5000:
+            return jsonify({"message": "Author details are too long."}), 400
     if "institution" in data:
-        paper.institution = data["institution"].strip()
+        paper.institution = text_field(data, "institution", max_length=255)
     if "department" in data:
-        paper.department = data["department"].strip()
+        paper.department = text_field(data, "department", max_length=255)
     if "category_id" in data:
-        paper.category_id = int(data["category_id"])
+        try:
+            category_id = int(data["category_id"])
+        except (ValueError, TypeError):
+            return jsonify({"message": "Choose an existing category."}), 400
+        if not db.session.get(Category, category_id):
+            return jsonify({"message": "Choose an existing category."}), 400
+        paper.category_id = category_id
 
     # Handle file replacement
     if "file" in request.files:
@@ -237,7 +274,9 @@ def update_paper(paper_id):
                     except Exception:
                         pass
                 paper.pdf_url = pdf_key
-            except (ValueError, RuntimeError) as e:
+            except RuntimeError:
+                return jsonify({"message": "Document conversion or storage is unavailable."}), 503
+            except ValueError as e:
                 return jsonify({"message": str(e)}), 400
 
     db.session.commit()
@@ -276,6 +315,7 @@ def delete_paper(paper_id):
 def toggle_bookmark(paper_id):
     user_id = int(get_jwt_identity())
     paper = Paper.query.get_or_404(paper_id)
+    require_content_access(paper, paper.primary_author_id)
 
     bookmark = Bookmark.query.filter_by(user_id=user_id, paper_id=paper_id).first()
     if bookmark:
@@ -293,5 +333,7 @@ def toggle_bookmark(paper_id):
 @jwt_required()
 def check_bookmark(paper_id):
     user_id = int(get_jwt_identity())
+    paper = Paper.query.get_or_404(paper_id)
+    require_content_access(paper, paper.primary_author_id)
     bookmark = Bookmark.query.filter_by(user_id=user_id, paper_id=paper_id).first()
     return jsonify({"bookmarked": bookmark is not None}), 200

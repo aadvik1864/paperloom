@@ -70,7 +70,7 @@ export default function About() {
       <section className="bg-gradient-to-br from-navy-900 via-navy-800 to-navy-700 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-28 text-center">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6">
-            About Al-Qwal Publications
+            About Paperloom
           </h1>
           <p className="text-lg md:text-xl text-navy-200 max-w-3xl mx-auto leading-relaxed">
             A modern research publication platform built for academics, researchers, and institutions

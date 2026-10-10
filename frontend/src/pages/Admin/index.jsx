@@ -144,7 +144,7 @@ function CreateProfileTab() {
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password *</label>
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
             className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent"
-            placeholder="At least 6 characters" required />
+             placeholder="At least 12 characters" minLength={12} autoComplete="new-password" required />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Access Level</label>
@@ -195,9 +195,10 @@ function UsersTab() {
   };
 
   const handleSetPassword = async (userId) => {
-    const newPassword = prompt('Enter new password (min 6 characters):');
-    if (!newPassword || newPassword.length < 6) {
-      alert('Password must be at least 6 characters.');
+    const newPassword = prompt('Enter new password (min 12 characters, max 72 UTF-8 bytes):');
+    if (!newPassword) return;
+    if (newPassword.length < 12 || new TextEncoder().encode(newPassword).length > 72) {
+      alert('Use at least 12 characters and at most 72 UTF-8 bytes.');
       return;
     }
     try {

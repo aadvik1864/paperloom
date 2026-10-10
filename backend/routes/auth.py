@@ -1,26 +1,47 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from models.user import User
+from extensions import limiter
+from utils.security import auth_version, json_object, normalize_profile_name
+import hashlib
+
+
+def login_profile_key():
+    data = request.get_json(silent=True)
+    name = data.get("profile_name", "") if isinstance(data, dict) else ""
+    name = name.strip().casefold() if isinstance(name, str) else ""
+    return "profile:" + hashlib.sha256(name.encode()).hexdigest()
 
 auth_bp = Blueprint('auth', __name__)
 
 
 @auth_bp.route('/login', methods=['POST'])
+@limiter.limit("5 per minute; 30 per hour")
+@limiter.limit("10 per minute; 50 per hour", key_func=login_profile_key)
 def login():
-    data = request.get_json() or {}
+    data = json_object()
 
-    profile_name = data.get('profile_name', '').strip()
+    profile_name = data.get('profile_name', '')
     password = data.get('password', '')
+    if not isinstance(profile_name, str) or not isinstance(password, str):
+        return jsonify({"message": "Profile name and password must be strings."}), 400
+    profile_name = " ".join(profile_name.split())
 
     if not profile_name or not password:
         return jsonify({"message": "Profile name and password are required."}), 400
 
     user = User.query.filter_by(profile_name=profile_name).first()
 
-    if not user or not user.check_password(password):
+    if user:
+        valid = user.check_password(password)
+    else:
+        # Avoid the fast "unknown profile" response revealing account names.
+        User(profile_name="invalid", role="visitor").check_password(password)
+        valid = False
+    if not valid:
         return jsonify({"message": "Invalid profile name or password."}), 401
 
-    access_token = create_access_token(identity=str(user.id))
+    access_token = create_access_token(identity=str(user.id), additional_claims={"auth_version": auth_version(user)})
 
     return jsonify({
         "message": "Login successful.",

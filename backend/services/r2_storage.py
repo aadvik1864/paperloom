@@ -11,6 +11,7 @@ class R2Storage:
             self.init_app(app)
 
     def init_app(self, app):
+        self.client = None
         account_id = app.config.get("R2_ACCOUNT_ID")
         access_key = app.config.get("R2_ACCESS_KEY_ID")
         secret_key = app.config.get("R2_SECRET_ACCESS_KEY")
@@ -39,7 +40,7 @@ class R2Storage:
             filename = f"{uuid.uuid4().hex}.{ext}"
 
         key = f"{folder}/{filename}"
-        self.client.upload_fileobj(file_obj, self.bucket, key)
+        self.client.upload_fileobj(file_obj, self.bucket, key, ExtraArgs={"ContentType": file_obj.content_type or "application/octet-stream"})
         return key
 
     def upload_from_path(self, file_path, folder="papers", filename=None):
@@ -68,7 +69,17 @@ class R2Storage:
         if not self.client:
             raise RuntimeError("R2 storage is not configured")
         response = self.client.get_object(Bucket=self.bucket, Key=key)
-        return response["Body"].read()
+        body = response["Body"]
+        try:
+            limit = current_app.config["MAX_FILE_BYTES"]
+            if response.get("ContentLength", 0) > limit:
+                raise RuntimeError("Stored file exceeds the download limit.")
+            data = body.read(limit + 1)
+            if len(data) > limit:
+                raise RuntimeError("Stored file exceeds the download limit.")
+            return data
+        finally:
+            body.close()
 
     def delete_file(self, key):
         if not self.client:

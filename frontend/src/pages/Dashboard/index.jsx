@@ -194,7 +194,7 @@ function UploadPaperTab() {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Keywords</label>
             <input type="text" value={form.keywords} onChange={(e) => setForm({ ...form, keywords: e.target.value })}
               className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent"
-              placeholder="machine learning, AI" />
+              placeholder="machine learning, public health" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Institution</label>

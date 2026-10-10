@@ -1,12 +1,13 @@
 import re
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from extensions import db
+from extensions import db, limiter
 from models.blog import Blog
 from models.interactions import Comment
 from models.user import User
 from utils.decorators import role_required
 from services.r2_storage import r2_storage
+from utils.security import require_content_access, visible_query, json_object, text_field, safe_url, tags_field
 
 blogs_bp = Blueprint("blogs", __name__)
 
@@ -16,6 +17,7 @@ def slugify(text):
 
 
 @blogs_bp.route("", methods=["GET"])
+@jwt_required(optional=True)
 def list_blogs():
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 20, type=int)
@@ -24,7 +26,7 @@ def list_blogs():
     author_id = request.args.get("author_id", type=int)
     status = request.args.get("status", "published")
 
-    query = Blog.query.filter_by(status=status)
+    query = visible_query(Blog.query, Blog, Blog.author_id, status)
 
     if category:
         query = query.filter_by(category=category)
@@ -41,7 +43,7 @@ def list_blogs():
         )
 
     query = query.order_by(Blog.published_at.desc())
-    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    pagination = query.paginate(page=page, per_page=per_page, max_per_page=50, error_out=False)
 
     return jsonify({
         "blogs": [b.to_dict() for b in pagination.items],
@@ -52,6 +54,7 @@ def list_blogs():
 
 
 @blogs_bp.route("/<string:slug_or_id>", methods=["GET"])
+@jwt_required(optional=True)
 def get_blog(slug_or_id):
     blog = None
     if slug_or_id.isdigit():
@@ -61,6 +64,7 @@ def get_blog(slug_or_id):
 
     if not blog:
         return jsonify({"message": "Blog not found."}), 404
+    require_content_access(blog, blog.author_id)
 
     blog.view_count += 1
     db.session.commit()
@@ -73,20 +77,23 @@ def get_blog(slug_or_id):
 @role_required(["author", "admin"])
 def create_blog():
     user_id = int(get_jwt_identity())
-    data = request.get_json() or {}
+    data = json_object()
 
-    title = data.get("title", "").strip()
-    content = data.get("content", "").strip()
-    category = data.get("category", "").strip()
-    raw_tags = data.get("tags", "")
-    tags = ", ".join(raw_tags) if isinstance(raw_tags, list) else raw_tags.strip()
-    cover_image_url = data.get("cover_image_url", "").strip()
-    status = data.get("status", "published")
+    title = text_field(data, "title", max_length=255)
+    content = text_field(data, "content", max_length=100000)
+    category = text_field(data, "category", max_length=100)
+    tags = tags_field(data)
+    cover_image_url = safe_url(data.get("cover_image_url", ""))
+    status = text_field(data, "status", "published")
+    if status not in {"draft", "published", "removed"}:
+        return jsonify({"message": "Choose draft, published, or removed."}), 400
 
     if not title or not content:
         return jsonify({"message": "Title and content are required."}), 400
+    if not slugify(title):
+        return jsonify({"message": "Title must include a letter or number."}), 400
 
-    base_slug = slugify(title)
+    base_slug = slugify(title)[:240] or "post"
     slug = base_slug
     counter = 1
     while Blog.query.filter_by(slug=slug).first():
@@ -122,22 +129,25 @@ def update_blog(blog_id):
         if user.role != "admin":
             return jsonify({"message": "You can only edit your own blogs."}), 403
 
-    data = request.get_json() or {}
+    data = json_object()
 
     if "title" in data:
-        blog.title = data["title"].strip()
+        blog.title = text_field(data, "title", max_length=255)
     if "content" in data:
-        blog.content = data["content"].strip()
+        blog.content = text_field(data, "content", max_length=100000)
     if "category" in data:
-        blog.category = data["category"].strip()
+        blog.category = text_field(data, "category", max_length=100)
     if "tags" in data:
-        raw = data["tags"]
-        blog.tags = ", ".join(raw) if isinstance(raw, list) else raw.strip()
+        blog.tags = tags_field(data)
+    if "title" in data and not slugify(blog.title):
+        return jsonify({"message": "Title must include a letter or number."}), 400
     if "cover_image_url" in data:
-        blog.cover_image_url = data["cover_image_url"].strip()
+        blog.cover_image_url = safe_url(data["cover_image_url"])
     if "status" in data:
         old_status = blog.status
-        blog.status = data["status"].strip()
+        blog.status = text_field(data, "status")
+        if blog.status not in {"draft", "published", "removed"}:
+            return jsonify({"message": "Choose draft, published, or removed."}), 400
         if blog.status == "published" and old_status != "published":
             blog.published_at = __import__("datetime").datetime.utcnow()
 
@@ -164,14 +174,16 @@ def delete_blog(blog_id):
 
 @blogs_bp.route("/<int:blog_id>/comments", methods=["POST"])
 @jwt_required()
+@limiter.limit("20 per minute")
 def add_comment(blog_id):
     user_id = int(get_jwt_identity())
     blog = Blog.query.get_or_404(blog_id)
-    data = request.get_json() or {}
+    require_content_access(blog, blog.author_id)
+    data = json_object()
 
-    content = data.get("content", "").strip()
+    content = text_field(data, "content", max_length=5000)
     if not content:
-        return jsonify({"message": "Comment content is required."}, 400)
+        return jsonify({"message": "Comment content is required."}), 400
 
     comment = Comment(
         blog_id=blog_id,

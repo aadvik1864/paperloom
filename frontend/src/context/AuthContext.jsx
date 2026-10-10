@@ -39,7 +39,13 @@ export function AuthProvider({ children }) {
       const u = res.data?.user ?? null;
       setUser(u);
       setSafeUser('user', u);
-    } catch {
+    } catch (error) {
+      if (error.response?.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setUser(null);
+        return;
+      }
       const cached = getSafeUser('user');
       if (cached) {
         setUser(cached);
@@ -55,6 +61,9 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     fetchUser();
+    const clearSession = () => setUser(null);
+    window.addEventListener('paperloom:session-expired', clearSession);
+    return () => window.removeEventListener('paperloom:session-expired', clearSession);
   }, [fetchUser]);
 
   const login = async (profileName, password) => {

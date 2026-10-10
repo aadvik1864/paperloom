@@ -2,6 +2,8 @@ import bcrypt
 from datetime import datetime
 from extensions import db
 
+_DUMMY_PASSWORD_HASH = bcrypt.hashpw(b"paperloom-dummy-login-password", bcrypt.gensalt())
+
 class User(db.Model):
     __tablename__ = 'users'
 
@@ -28,11 +30,30 @@ class User(db.Model):
     bookmarks = db.relationship('Bookmark', backref='user', lazy=True, cascade='all, delete-orphan')
 
     def set_password(self, password):
+        from utils.security import validate_password
+        validate_password(password)
         salt = bcrypt.gensalt()
         self.password_hash = bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
     def check_password(self, password):
-        return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
+        from utils.security import validate_password
+        if not self.password_hash:
+            candidate = password.encode("utf-8")[:72] if isinstance(password, str) else b"invalid"
+            try:
+                bcrypt.checkpw(candidate, _DUMMY_PASSWORD_HASH)
+            except ValueError:
+                pass
+            return False
+        try:
+            validate_password(password)
+            return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
+        except (ValueError, TypeError):
+            candidate = password.encode("utf-8")[:72] if isinstance(password, str) else b"invalid"
+            try:
+                bcrypt.checkpw(candidate, _DUMMY_PASSWORD_HASH)
+            except ValueError:
+                pass
+            return False
 
     def to_dict(self):
         return {
