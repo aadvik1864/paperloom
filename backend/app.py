@@ -1,16 +1,18 @@
 import hmac
+from pathlib import Path
 import click
-from flask import Flask, jsonify, request
+from flask import Flask, abort, jsonify, request, send_from_directory
 from flask_cors import CORS
 from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.utils import safe_join
 from extensions import db, jwt, limiter
 from config import Config
 from services.r2_storage import r2_storage
 
 
 def create_app(config_class=Config):
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder=None)
     app.config.from_object(Config)
     app.config.from_object(config_class)
     for key in ("SECRET_KEY", "JWT_SECRET_KEY"):
@@ -80,6 +82,23 @@ def create_app(config_class=Config):
     @limiter.exempt
     def health_check():
         return jsonify({"status": "healthy", "service": "paperloom"})
+
+    frontend_dir = Path(app.config.get("FRONTEND_DIST", Path(app.root_path) / "frontend_dist"))
+    if (frontend_dir / "index.html").is_file():
+        @app.route("/", defaults={"path": ""})
+        @app.route("/<path:path>")
+        @limiter.exempt
+        def frontend(path):
+            if path == "api" or path.startswith("api/"):
+                abort(404)
+            file_path = safe_join(str(frontend_dir), path)
+            if file_path is None:
+                abort(404)
+            if path and Path(file_path).is_file():
+                return send_from_directory(frontend_dir, path)
+            if path.startswith("assets/") or Path(path).suffix:
+                abort(404)
+            return send_from_directory(frontend_dir, "index.html")
 
     @jwt.token_in_blocklist_loader
     def invalid_session(jwt_header, payload):
