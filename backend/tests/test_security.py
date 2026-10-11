@@ -45,14 +45,50 @@ def test_missing_or_placeholder_secrets_fail_closed(key, value):
 
 
 def test_production_requires_shared_rate_limit_storage():
-    config = type("ProductionConfig", (TestConfig,), {"TESTING": False, "ENVIRONMENT": "production"})
+    config = type("ProductionConfig", (TestConfig,), {
+        "TESTING": False, "ENVIRONMENT": "production",
+        "SQLALCHEMY_DATABASE_URI": "postgresql+psycopg2://user:pass@db.example/paperloom",
+        "CORS_ORIGINS": ["https://paperloom.example"],
+    })
     with pytest.raises(ValueError, match="Redis"):
         create_app(config)
 
 
 def test_production_requires_explicit_https_origins():
-    config = type("ProductionConfig", (TestConfig,), {"TESTING": False, "ENVIRONMENT": "production", "RATELIMIT_STORAGE_URI": "redis://localhost:6379"})
+    config = type("ProductionConfig", (TestConfig,), {
+        "TESTING": False, "ENVIRONMENT": "production",
+        "SQLALCHEMY_DATABASE_URI": "postgresql+psycopg2://user:pass@db.example/paperloom",
+        "RATELIMIT_STORAGE_URI": "redis://localhost:6379",
+    })
     with pytest.raises(ValueError, match="CORS_ORIGINS"):
+        create_app(config)
+
+
+@pytest.mark.parametrize("origin", ["http://paperloom.example", "https://", "https://paperloom.example/path", "https://*.example.com"])
+def test_production_rejects_invalid_cors_origins(origin):
+    config = type("ProductionConfig", (TestConfig,), {
+        "TESTING": False, "ENVIRONMENT": "production",
+        "SQLALCHEMY_DATABASE_URI": "postgresql+psycopg2://user:pass@db.example/paperloom",
+        "RATELIMIT_STORAGE_URI": "rediss://redis.example:6379/0",
+        "CORS_ORIGINS": [origin],
+    })
+    with pytest.raises(ValueError, match="CORS_ORIGINS"):
+        create_app(config)
+
+
+def test_production_rejects_sqlite():
+    config = type("ProductionConfig", (TestConfig,), {
+        "TESTING": False, "ENVIRONMENT": "production",
+        "RATELIMIT_STORAGE_URI": "redis://localhost:6379",
+        "CORS_ORIGINS": ["https://paperloom.example"],
+    })
+    with pytest.raises(ValueError, match="PostgreSQL"):
+        create_app(config)
+
+
+def test_secrets_must_be_distinct():
+    config = type("SameSecrets", (TestConfig,), {"JWT_SECRET_KEY": TestConfig.SECRET_KEY})
+    with pytest.raises(ValueError, match="must be different"):
         create_app(config)
 
 

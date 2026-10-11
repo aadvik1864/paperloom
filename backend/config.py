@@ -14,6 +14,7 @@ class Config:
     if not SQLALCHEMY_DATABASE_URI:
         SQLALCHEMY_DATABASE_URI = "sqlite:///dev.db"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True, "pool_recycle": 300}
     
     # JWT
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
@@ -27,6 +28,7 @@ class Config:
     RATELIMIT_STRATEGY = "moving-window"
     RATELIMIT_HEADERS_ENABLED = True
     RATELIMIT_KEY_PREFIX = "paperloom"
+    RATELIMIT_SWALLOW_ERRORS = False
     CORS_ORIGINS = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:5184").split(",") if origin.strip()]
     PROXY_HOPS = int(os.getenv("PROXY_HOPS", "0"))
     ENVIRONMENT = os.getenv("FLASK_ENV", "production")

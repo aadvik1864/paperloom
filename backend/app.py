@@ -1,8 +1,10 @@
 import hmac
 from pathlib import Path
+from urllib.parse import urlsplit
 import click
 from flask import Flask, abort, jsonify, request, send_from_directory
 from flask_cors import CORS
+from redis import Redis
 from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.utils import safe_join
@@ -19,13 +21,35 @@ def create_app(config_class=Config):
         secret = app.config.get(key)
         if not isinstance(secret, str) or len(secret) < 32 or secret.lower().startswith(("change-this", "your-", "super-secret", "jwt-secret")):
             raise ValueError(f"{key} must be explicitly configured with at least 32 random characters.")
+    if app.config["SECRET_KEY"] == app.config["JWT_SECRET_KEY"]:
+        raise ValueError("SECRET_KEY and JWT_SECRET_KEY must be different values.")
     if app.config.get("ENVIRONMENT") == "production" and not app.testing:
+        if not app.config.get("SQLALCHEMY_DATABASE_URI", "").startswith("postgresql+"):
+            raise ValueError("Production requires a PostgreSQL DATABASE_URL.")
         uri = app.config["RATELIMIT_STORAGE_URI"]
-        if not uri.startswith(("redis://", "rediss://")):
+        try:
+            redis_url = urlsplit(uri)
+            valid_redis = redis_url.scheme in {"redis", "rediss"} and redis_url.hostname and not redis_url.fragment
+            redis_url.port
+        except (TypeError, ValueError):
+            valid_redis = False
+        if not valid_redis:
             raise ValueError("Production requires a shared Redis RATELIMIT_STORAGE_URI.")
         origins = app.config["CORS_ORIGINS"]
-        if not origins or any(not origin.startswith("https://") or "*" in origin for origin in origins):
+        if not origins:
             raise ValueError("Production requires explicit HTTPS frontend CORS_ORIGINS.")
+        for origin in origins:
+            try:
+                parsed_origin = urlsplit(origin)
+                valid_origin = (parsed_origin.scheme == "https" and parsed_origin.hostname and
+                                not parsed_origin.username and not parsed_origin.password and
+                                parsed_origin.path in {"", "/"} and not parsed_origin.query and
+                                not parsed_origin.fragment and "*" not in origin)
+                parsed_origin.port
+            except ValueError:
+                valid_origin = False
+            if not valid_origin:
+                raise ValueError("CORS_ORIGINS must contain exact HTTPS origins only (no paths or wildcards).")
     hops = app.config.get("PROXY_HOPS", 0)
     if hops:
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=hops, x_proto=hops)
@@ -33,6 +57,18 @@ def create_app(config_class=Config):
     db.init_app(app)
     jwt.init_app(app)
     limiter.init_app(app)
+    if app.config.get("ENVIRONMENT") == "production" and not app.testing:
+        redis_client = Redis.from_url(
+            app.config["RATELIMIT_STORAGE_URI"],
+            socket_connect_timeout=3,
+            socket_timeout=3,
+        )
+        try:
+            redis_client.ping()
+        except Exception:
+            raise RuntimeError("The configured Redis service is unreachable; verify RATELIMIT_STORAGE_URI and network access.") from None
+        finally:
+            redis_client.close()
     r2_storage.init_app(app)
     CORS(app, resources={r"/api/*": {"origins": app.config["CORS_ORIGINS"]}})
 
