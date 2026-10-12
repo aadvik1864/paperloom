@@ -11,6 +11,7 @@ def website(tmp_path):
     (bundle / "index.html").write_text('<html><div id="root">Paperloom</div></html>', encoding="utf-8")
     (bundle / "assets").mkdir()
     (bundle / "assets" / "app.js").write_text('console.log("Paperloom");', encoding="utf-8")
+    (bundle / ".env").write_text("PRIVATE=must-not-be-served", encoding="utf-8")
     (tmp_path / "private.txt").write_text("private", encoding="utf-8")
     config = type("WebsiteConfig", (TestConfig,), {"FRONTEND_DIST": bundle})
     app = create_app(config)
@@ -35,7 +36,7 @@ def test_static_assets_keep_their_content_type(website):
     assert response.text == 'console.log("Paperloom");'
 
 
-@pytest.mark.parametrize("path", ["/assets/missing.js", "/missing.pdf", "/../private.txt", "/%2e%2e/private.txt"])
+@pytest.mark.parametrize("path", ["/assets/missing.js", "/missing.pdf", "/../private.txt", "/%2e%2e/private.txt", "/.env", "/.git/config", "/%2eenv"])
 def test_missing_assets_and_traversal_do_not_return_html(website, path):
     response = website.get(path)
     assert response.status_code == 404
@@ -54,3 +55,10 @@ def test_api_and_authentication_still_work(website):
     assert website.get("/health").json["status"] == "healthy"
     assert website.get("/api/papers").status_code == 200
     assert website.get("/api/auth/me").status_code == 401
+
+
+def test_website_has_content_security_policy(website):
+    response = website.get("/")
+    assert "script-src 'self'" in response.headers["Content-Security-Policy"]
+    assert "object-src 'none'" in response.headers["Content-Security-Policy"]
+    assert response.headers["Cache-Control"] == "no-store"

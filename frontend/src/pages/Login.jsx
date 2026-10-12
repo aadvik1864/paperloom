@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/auth';
 
 export default function Login() {
   const [profileName, setProfileName] = useState('');
@@ -34,15 +34,18 @@ export default function Login() {
           </div>
 
           {error && (
-            <div className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-sm p-3 rounded-lg mb-4">
+            <div role="alert" className="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm p-3 rounded-lg mb-4">
               {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Profile Name</label>
+              <label htmlFor="login-profile" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Profile Name</label>
               <input
+                id="login-profile"
+                autoComplete="username"
+                maxLength={150}
                 type="text"
                 value={profileName}
                 onChange={(e) => setProfileName(e.target.value)}
@@ -52,8 +55,12 @@ export default function Login() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
+              <label htmlFor="login-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
               <input
+                id="login-password"
+                autoComplete="current-password"
+                minLength={12}
+                maxLength={72}
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

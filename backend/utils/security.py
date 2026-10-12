@@ -7,6 +7,21 @@ from extensions import db
 from models.user import User
 
 
+MAX_ID = 2147483647
+
+
+def positive_id(value):
+    if isinstance(value, bool) or not isinstance(value, (int, str)):
+        abort(400, description="Choose a valid identifier.")
+    try:
+        number = int(value)
+    except (ValueError, TypeError):
+        abort(400, description="Choose a valid identifier.")
+    if not 1 <= number <= MAX_ID:
+        abort(400, description="Choose a valid identifier.")
+    return number
+
+
 def validate_password(password):
     if not isinstance(password, str) or len(password) < 12 or len(password.encode("utf-8")) > 72:
         raise ValueError("Use a password of at least 12 characters and at most 72 UTF-8 bytes.")

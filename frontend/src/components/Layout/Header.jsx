@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/auth';
+import { useTheme } from '../../context/theme';
 import Icon from '../Common/Icon';
 
 export default function Header() {
@@ -19,6 +19,7 @@ export default function Header() {
     { to: '/browse?type=blogs', label: 'Blogs', active: (pathname === '/browse' && isBlogs) || pathname.startsWith('/blogs/') },
     { to: '/about', label: 'About', active: pathname === '/about' },
     ...(canPublish ? [{ to: '/dashboard', label: 'Dashboard', active: pathname.startsWith('/dashboard') }] : []),
+    ...(user && !canPublish ? [{ to: '/dashboard', label: 'Bookmarks', active: pathname.startsWith('/dashboard') }] : []),
     ...(user?.role === 'admin' ? [{ to: '/admin', label: 'Admin', active: pathname.startsWith('/admin') }] : []),
   ];
 

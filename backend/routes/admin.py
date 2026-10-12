@@ -5,10 +5,19 @@ from models.user import User
 from models.paper import Paper, Category
 from models.blog import Blog
 from utils.decorators import role_required
-from services.r2_storage import r2_storage
+from services.file_lifecycle import commit_files
 from utils.security import json_object, text_field, validate_password, normalize_profile_name
 
 admin_bp = Blueprint("admin", __name__)
+
+
+def lock_administrators():
+    if db.engine.dialect.name == "postgresql":
+        db.session.execute(db.text("SELECT pg_advisory_xact_lock(76614201)"))
+    actor = db.session.get(User, int(get_jwt_identity()), populate_existing=True)
+    if not actor or actor.role != "admin":
+        from flask import abort
+        abort(403, description="Administrator access is required.")
 
 
 @admin_bp.route("/users", methods=["POST"])
@@ -100,12 +109,15 @@ def admin_set_password(user_id):
 @jwt_required()
 @role_required("admin")
 def update_user_role(user_id):
+    lock_administrators()
     user = User.query.get_or_404(user_id)
     data = json_object()
 
     new_role = text_field(data, "role")
     if new_role not in ("visitor", "author", "admin"):
         return jsonify({"message": "Invalid role."}), 400
+    if user.role == "admin" and new_role != "admin" and User.query.filter_by(role="admin").count() <= 1:
+        return jsonify({"message": "Keep at least one administrator. Promote another profile first."}), 409
 
     user.role = new_role
     db.session.commit()
@@ -116,12 +128,18 @@ def update_user_role(user_id):
 @jwt_required()
 @role_required("admin")
 def delete_user(user_id):
+    lock_administrators()
     if user_id == int(get_jwt_identity()):
         return jsonify({"message": "You cannot delete yourself."}), 400
 
     user = User.query.get_or_404(user_id)
+    if user.role == "admin" and User.query.filter_by(role="admin").count() <= 1:
+        return jsonify({"message": "The last administrator cannot be deleted."}), 409
+    old_keys = [p.pdf_url for p in user.papers]
+    if user.profile_photo_url and user.profile_photo_url.startswith("avatars/"):
+        old_keys.append(user.profile_photo_url)
     db.session.delete(user)
-    db.session.commit()
+    commit_files(obsolete=old_keys)
     return jsonify({"message": "User deleted successfully."}), 200
 
 
@@ -163,14 +181,10 @@ def toggle_paper_status(paper_id):
 @jwt_required()
 @role_required("admin")
 def admin_delete_paper(paper_id):
-    paper = Paper.query.get_or_404(paper_id)
-    if paper.pdf_url:
-        try:
-            r2_storage.delete_file(paper.pdf_url)
-        except Exception:
-            pass
+    paper = Paper.query.filter_by(id=paper_id).with_for_update().first_or_404()
+    old_key = paper.pdf_url
     db.session.delete(paper)
-    db.session.commit()
+    commit_files(obsolete=[old_key])
     return jsonify({"message": "Paper permanently deleted."}), 200
 
 

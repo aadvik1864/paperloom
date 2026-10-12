@@ -5,6 +5,8 @@ import click
 from flask import Flask, abort, jsonify, request, send_from_directory
 from flask_cors import CORS
 from redis import Redis
+from sqlalchemy import inspect, text
+from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.utils import safe_join
@@ -19,7 +21,8 @@ def create_app(config_class=Config):
     app.config.from_object(config_class)
     for key in ("SECRET_KEY", "JWT_SECRET_KEY"):
         secret = app.config.get(key)
-        if not isinstance(secret, str) or len(secret) < 32 or secret.lower().startswith(("change-this", "your-", "super-secret", "jwt-secret")):
+        if (not isinstance(secret, str) or len(secret) < 32 or len(set(secret)) < 8 or
+                secret.lower().startswith(("change-this", "your-", "super-secret", "jwt-secret", "generate-", "replace-", "example-"))):
             raise ValueError(f"{key} must be explicitly configured with at least 32 random characters.")
     if app.config["SECRET_KEY"] == app.config["JWT_SECRET_KEY"]:
         raise ValueError("SECRET_KEY and JWT_SECRET_KEY must be different values.")
@@ -76,9 +79,38 @@ def create_app(config_class=Config):
     from models.user import User
     from utils.security import auth_version
     with app.app_context():
-        db.create_all()
-        from database.seed import seed_database
-        seed_database()
+        if app.config.get("ENVIRONMENT") != "production" or app.testing:
+            db.create_all()
+            from database.seed import seed_database
+            seed_database()
+        else:
+            try:
+                schema = inspect(db.engine)
+                for table in db.metadata.sorted_tables:
+                    if not schema.has_table(table.name) or not set(table.columns.keys()).issubset(
+                            {column["name"] for column in schema.get_columns(table.name)}):
+                        raise RuntimeError("Database schema is not ready. Apply the reviewed database migrations before starting.")
+            except SQLAlchemyError:
+                raise RuntimeError("Database is unreachable; verify database configuration and network access.") from None
+
+    @app.before_request
+    def validate_numeric_inputs():
+        from utils.security import MAX_ID
+        for value in (request.view_args or {}).values():
+            if isinstance(value, int) and not 1 <= value <= MAX_ID:
+                abort(404)
+        if not request.path.startswith("/api/"):
+            return
+        for key, maximum in (("page", 1000000), ("per_page", 1000), ("author_id", MAX_ID), ("category_id", MAX_ID)):
+            if key not in request.args:
+                continue
+            values = request.args.getlist(key)
+            try:
+                valid = len(values) == 1 and 1 <= int(values[0]) <= maximum
+            except (ValueError, TypeError):
+                valid = False
+            if not valid:
+                abort(400, description=f"{key} must be a positive integer no greater than {maximum}.")
 
     @app.cli.command("seed")
     def seed_command():
@@ -117,7 +149,21 @@ def create_app(config_class=Config):
     @app.route("/health")
     @limiter.exempt
     def health_check():
+        try:
+            db.session.execute(text("SELECT 1"))
+            if app.config["RATELIMIT_STORAGE_URI"].startswith(("redis://", "rediss://")):
+                with Redis.from_url(app.config["RATELIMIT_STORAGE_URI"], socket_connect_timeout=3, socket_timeout=3) as redis_client:
+                    if not redis_client.ping():
+                        raise RuntimeError("Redis unavailable")
+        except Exception:
+            db.session.rollback()
+            return jsonify({"status": "unavailable", "service": "paperloom"}), 503
         return jsonify({"status": "healthy", "service": "paperloom"})
+
+    @app.route("/live")
+    @limiter.exempt
+    def liveness_check():
+        return jsonify({"status": "alive", "service": "paperloom"})
 
     frontend_dir = Path(app.config.get("FRONTEND_DIST", Path(app.root_path) / "frontend_dist"))
     if (frontend_dir / "index.html").is_file():
@@ -126,6 +172,8 @@ def create_app(config_class=Config):
         @limiter.exempt
         def frontend(path):
             if path == "api" or path.startswith("api/"):
+                abort(404)
+            if any(part.startswith(".") for part in Path(path).parts):
                 abort(404)
             file_path = safe_join(str(frontend_dir), path)
             if file_path is None:
@@ -139,7 +187,11 @@ def create_app(config_class=Config):
     @jwt.token_in_blocklist_loader
     def invalid_session(jwt_header, payload):
         try:
-            user = db.session.get(User, int(payload.get("sub", "")))
+            from utils.security import MAX_ID
+            identity = int(payload.get("sub", ""))
+            if not 1 <= identity <= MAX_ID:
+                return True
+            user = db.session.get(User, identity)
         except (TypeError, ValueError):
             return True
         stamp = payload.get("auth_version")
@@ -169,13 +221,33 @@ def create_app(config_class=Config):
             response.headers["Retry-After"] = "60"
         return response
 
+    @app.errorhandler(SQLAlchemyError)
+    def database_error(error):
+        db.session.rollback()
+        app.logger.error("Database operation failed (%s).", type(error).__name__)
+        return jsonify({"message": "The database is temporarily unavailable. Try again."}), 503
+
+    @app.errorhandler(Exception)
+    def unexpected_error(error):
+        db.session.rollback()
+        app.logger.error("Request failed (%s).", type(error).__name__)
+        return jsonify({"message": "The request could not be completed. Try again."}), 500
+
     @app.after_request
     def security_headers(response):
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["X-Frame-Options"] = "SAMEORIGIN"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; "
+            "worker-src 'self' blob:; object-src 'none'; frame-src 'none'; "
+            "frame-ancestors 'self'; base-uri 'self'; form-action 'self'"
+        )
         if request.path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-store"
+        if request.path in {"/health", "/live"} or response.mimetype == "text/html":
             response.headers["Cache-Control"] = "no-store"
         if request.is_secure:
             response.headers["Strict-Transport-Security"] = "max-age=31536000"

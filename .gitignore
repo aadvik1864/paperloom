@@ -6,3 +6,10 @@ __pycache__/
 .env
 *.db
 .env.local
+.env.*
+!.env.example
+*.pem
+*.key
+playwright-report/
+test-results/
+.pytest_cache/

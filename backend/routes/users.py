@@ -1,11 +1,14 @@
-from flask import Blueprint, request, jsonify
+import io
+from flask import Blueprint, request, jsonify, send_file
+from werkzeug.datastructures import FileStorage
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db, limiter
 from models.user import User
 from models.paper import Paper
 from models.blog import Blog
 from models.interactions import Bookmark
-from services.r2_storage import r2_storage
+from services.r2_storage import r2_storage, STORAGE_ERRORS
+from services.file_lifecycle import commit_files
 from utils.security import visible_query, json_object, text_field, safe_url, normalize_profile_name
 from services.converter import validate_avatar
 
@@ -16,6 +19,22 @@ users_bp = Blueprint("users", __name__)
 def get_profile(user_id):
     user = User.query.get_or_404(user_id)
     return jsonify({"user": user.to_dict()}), 200
+
+
+@users_bp.route("/<int:user_id>/avatar", methods=["GET"])
+def get_avatar(user_id):
+    user = User.query.get_or_404(user_id)
+    key = user.profile_photo_url
+    if not key or not key.startswith("avatars/"):
+        return jsonify({"message": "Avatar not found."}), 404
+    try:
+        image = validate_avatar(FileStorage(
+            stream=io.BytesIO(r2_storage.download_file(key)), filename="avatar.jpg"))
+    except ValueError:
+        return jsonify({"message": "Avatar not available."}), 404
+    except STORAGE_ERRORS:
+        return jsonify({"message": "Avatar storage is unavailable."}), 503
+    return send_file(image.stream, mimetype="image/jpeg")
 
 
 @users_bp.route("/<int:user_id>/papers", methods=["GET"])
@@ -61,7 +80,7 @@ def get_user_blogs(user_id):
 @limiter.limit("30 per hour")
 def update_profile():
     user_id = int(get_jwt_identity())
-    user = User.query.get_or_404(user_id)
+    user = User.query.filter_by(id=user_id).with_for_update().first_or_404()
 
     data = request.form.to_dict() if request.mimetype == "multipart/form-data" else json_object()
 
@@ -78,7 +97,8 @@ def update_profile():
                     return jsonify({"message": "That profile name is already in use."}), 400
             setattr(user, field, value)
 
-    # Handle profile photo upload separately
+    old_key = user.profile_photo_url
+    key = None
     if "profile_photo" in request.files:
         file = request.files["profile_photo"]
         if file.filename:
@@ -87,10 +107,10 @@ def update_profile():
                 user.profile_photo_url = key
             except ValueError as e:
                 return jsonify({"message": str(e)}), 400
-            except RuntimeError as e:
-                return jsonify({"message": str(e)}), 500
+            except STORAGE_ERRORS:
+                return jsonify({"message": "Avatar storage is unavailable."}), 503
 
-    db.session.commit()
+    commit_files(uploaded=[key], obsolete=[old_key] if key and old_key and old_key.startswith("avatars/") else [])
     return jsonify({"message": "Profile updated.", "user": user.to_dict()}), 200
 
 

@@ -9,7 +9,7 @@ import hashlib
 def login_profile_key():
     data = request.get_json(silent=True)
     name = data.get("profile_name", "") if isinstance(data, dict) else ""
-    name = name.strip().casefold() if isinstance(name, str) else ""
+    name = " ".join(name.split()).casefold() if isinstance(name, str) else ""
     return "profile:" + hashlib.sha256(name.encode()).hexdigest()
 
 auth_bp = Blueprint('auth', __name__)
@@ -29,6 +29,7 @@ def login():
 
     if not profile_name or not password:
         return jsonify({"message": "Profile name and password are required."}), 400
+    profile_name = normalize_profile_name(profile_name)
 
     user = User.query.filter_by(profile_name=profile_name).first()
 

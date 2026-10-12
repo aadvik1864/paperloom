@@ -16,7 +16,7 @@ class Comment(db.Model):
             "blog_id": self.blog_id,
             "user_id": self.user_id,
             "user_name": self.user.profile_name if self.user else "Unknown",
-            "user_photo": self.user.profile_photo_url if self.user else None,
+            "user_photo": self.user.to_dict()["profile_photo_url"] if self.user else None,
             "content": self.content,
             "created_at": self.created_at.isoformat()
         }

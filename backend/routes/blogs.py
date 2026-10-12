@@ -7,7 +7,7 @@ from models.interactions import Comment
 from models.user import User
 from utils.decorators import role_required
 from services.r2_storage import r2_storage
-from utils.security import require_content_access, visible_query, json_object, text_field, safe_url, tags_field
+from utils.security import require_content_access, visible_query, json_object, text_field, safe_url, tags_field, MAX_ID
 
 blogs_bp = Blueprint("blogs", __name__)
 
@@ -56,9 +56,13 @@ def list_blogs():
 @blogs_bp.route("/<string:slug_or_id>", methods=["GET"])
 @jwt_required(optional=True)
 def get_blog(slug_or_id):
+    if len(slug_or_id) > 255:
+        return jsonify({"message": "Blog not found."}), 404
     blog = None
-    if slug_or_id.isdigit():
-        blog = Blog.query.get(int(slug_or_id))
+    if slug_or_id.isascii() and slug_or_id.isdigit():
+        number = int(slug_or_id)
+        if number <= MAX_ID:
+            blog = db.session.get(Blog, number)
     if not blog:
         blog = Blog.query.filter_by(slug=slug_or_id).first()
 
@@ -66,7 +70,7 @@ def get_blog(slug_or_id):
         return jsonify({"message": "Blog not found."}), 404
     require_content_access(blog, blog.author_id)
 
-    blog.view_count += 1
+    db.session.execute(db.update(Blog).where(Blog.id == blog.id).values(view_count=Blog.view_count + 1))
     db.session.commit()
 
     return jsonify({"blog": blog.to_dict(include_comments=True)}), 200
@@ -135,6 +139,8 @@ def update_blog(blog_id):
         blog.title = text_field(data, "title", max_length=255)
     if "content" in data:
         blog.content = text_field(data, "content", max_length=100000)
+    if not blog.title or not blog.content:
+        return jsonify({"message": "Title and content cannot be blank."}), 400
     if "category" in data:
         blog.category = text_field(data, "category", max_length=100)
     if "tags" in data:

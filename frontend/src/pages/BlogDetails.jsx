@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/auth';
 import api from '../services/api';
 import { LoadingPage } from '../components/Common/Loading';
 import Breadcrumbs from '../components/Common/Breadcrumbs';
+import ReactMarkdown from 'react-markdown';
 
 export default function BlogDetails() {
   const { slug } = useParams();
@@ -12,34 +13,42 @@ export default function BlogDetails() {
   const [loading, setLoading] = useState(true);
   const [commentText, setCommentText] = useState('');
   const [sending, setSending] = useState(false);
+  const [feedback, setFeedback] = useState(null);
 
   useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setBlog(null);
+    setCommentText('');
+    setFeedback(null);
     const fetchBlog = async () => {
       try {
-        const res = await api.get(`/blogs/${slug}`);
-        setBlog(res.data.blog);
-      } catch (err) {
-        console.error('Failed to load blog:', err);
+        const res = await api.get(`/blogs/${slug}`, { signal: controller.signal });
+        if (!controller.signal.aborted) setBlog(res.data.blog);
+      } catch {
+        if (!controller.signal.aborted) setBlog(null);
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
     fetchBlog();
+    return () => controller.abort();
   }, [slug]);
 
   const handleComment = async (e) => {
     e.preventDefault();
     if (!commentText.trim()) return;
     setSending(true);
+    setFeedback(null);
     try {
       const res = await api.post(`/blogs/${blog.id}/comments`, { content: commentText });
-      setBlog((prev) => ({
+      setBlog((prev) => prev?.id === blog.id ? ({
         ...prev,
         comments: [...(prev.comments || []), res.data?.comment].filter(Boolean),
-      }));
+      }) : prev);
       setCommentText('');
     } catch (err) {
-      console.error('Comment error:', err);
+      setFeedback(err.response?.data?.message || 'Comment could not be posted. Try again.');
     } finally {
       setSending(false);
     }
@@ -48,12 +57,12 @@ export default function BlogDetails() {
   const handleDeleteComment = async (commentId) => {
     try {
       await api.delete(`/blogs/comments/${commentId}`);
-      setBlog((prev) => ({
+      setBlog((prev) => prev?.id === blog.id ? ({
         ...prev,
         comments: prev.comments.filter((c) => c.id !== commentId),
-      }));
+      }) : prev);
     } catch (err) {
-      console.error('Delete comment error:', err);
+      setFeedback(err.response?.data?.message || 'Comment could not be deleted. Try again.');
     }
   };
 
@@ -99,8 +108,11 @@ export default function BlogDetails() {
               ))}
             </div>
           )}
-          <div className="prose prose-sm md:prose-base max-w-none text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
-            {blog.content}
+          <div className="prose markdown-content max-w-none text-gray-700 dark:text-gray-300 leading-relaxed">
+            <ReactMarkdown skipHtml components={{
+              a: ({ href, children }) => <a href={href} rel="noopener noreferrer" className="text-link">{children}</a>,
+              img: ({ src, alt }) => <img src={src} alt={alt || ''} loading="lazy" referrerPolicy="no-referrer" />,
+            }}>{blog.content}</ReactMarkdown>
           </div>
         </div>
       </article>
@@ -110,10 +122,13 @@ export default function BlogDetails() {
         <h2 className="text-lg font-semibold text-navy-900 dark:text-white mb-6">
           Comments ({blog.comments?.length || 0})
         </h2>
+        {feedback && <p role="alert" className="action-feedback action-feedback--error mb-4">{feedback}</p>}
 
         {user ? (
           <form onSubmit={handleComment} className="mb-8">
             <textarea
+              aria-label="Comment"
+              maxLength={5000}
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none text-sm resize-none"

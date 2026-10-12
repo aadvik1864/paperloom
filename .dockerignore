@@ -10,3 +10,10 @@
 **/*.db
 **/instance
 **/.pytest_cache
+**/test-results
+**/playwright-report
+**/*.pem
+**/*.key
+backend/tests
+frontend/tests
+frontend/playwright.config.js

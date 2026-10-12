@@ -2,7 +2,11 @@ import boto3
 import uuid
 import os
 from botocore.config import Config as BotoConfig
+from botocore.exceptions import BotoCoreError, ClientError
+from boto3.exceptions import Boto3Error
 from flask import current_app
+
+STORAGE_ERRORS = (RuntimeError, OSError, BotoCoreError, ClientError, Boto3Error)
 
 class R2Storage:
     def __init__(self, app=None):
@@ -28,7 +32,8 @@ class R2Storage:
             endpoint_url=endpoint_url,
             aws_access_key_id=access_key,
             aws_secret_access_key=secret_key,
-            config=BotoConfig(signature_version="s3v4", region_name="auto"),
+            config=BotoConfig(signature_version="s3v4", region_name="auto", connect_timeout=3, read_timeout=15,
+                              retries={"max_attempts": 2, "mode": "standard"}),
         )
 
     def upload_file(self, file_obj, folder="papers", filename=None):

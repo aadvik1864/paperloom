@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/auth';
 import api from '../services/api';
 import BlurText from '../components/ReactBits/BlurText';
 import Icon from '../components/Common/Icon';

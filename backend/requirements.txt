@@ -14,3 +14,4 @@ pypdf==6.20.0
 Pillow==12.3.0
 defusedxml==0.7.1
 olefile==0.47
+alembic==1.20.0

@@ -11,23 +11,30 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setProfile(null);
+    setPapers([]);
+    setBlogs([]);
     const fetchProfile = async () => {
       try {
         const [userRes, papersRes, blogsRes] = await Promise.all([
-          api.get(`/users/${id}`),
-          api.get(`/users/${id}/papers?per_page=50`),
-          api.get(`/users/${id}/blogs?per_page=50`),
+          api.get(`/users/${id}`, { signal: controller.signal }),
+          api.get(`/users/${id}/papers?per_page=50`, { signal: controller.signal }),
+          api.get(`/users/${id}/blogs?per_page=50`, { signal: controller.signal }),
         ]);
+        if (controller.signal.aborted) return;
         setProfile(userRes.data.user);
         setPapers(papersRes.data.papers || []);
         setBlogs(blogsRes.data.blogs || []);
-      } catch (err) {
-        console.error('Failed to load profile:', err);
+      } catch {
+        if (!controller.signal.aborted) setProfile(null);
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
     fetchProfile();
+    return () => controller.abort();
   }, [id]);
 
   if (loading) return <LoadingPage />;
@@ -43,9 +50,9 @@ export default function Profile() {
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 md:p-8 mb-8">
         <div className="flex flex-col md:flex-row items-start md:items-center space-y-4 md:space-y-0 md:space-x-6">
           <div className="w-20 h-20 bg-navy-100 dark:bg-navy-800 rounded-full flex items-center justify-center flex-shrink-0">
-            <span className="text-2xl font-bold text-navy-600 dark:text-navy-300">
+            {profile.profile_photo_url ? <img src={`${api.defaults.baseURL}/users/${profile.id}/avatar`} alt="" className="w-20 h-20 rounded-full object-cover" /> : <span className="text-2xl font-bold text-navy-600 dark:text-navy-300">
               {profile.profile_name?.charAt(0).toUpperCase()}
-            </span>
+            </span>}
           </div>
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-navy-900 dark:text-white">{profile.profile_name}</h1>

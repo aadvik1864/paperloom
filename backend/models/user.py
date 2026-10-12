@@ -63,7 +63,7 @@ class User(db.Model):
             "bio": self.bio,
             "institution": self.institution,
             "department": self.department,
-            "profile_photo_url": self.profile_photo_url,
+            "profile_photo_url": f"/api/users/{self.id}/avatar" if self.profile_photo_url and self.profile_photo_url.startswith("avatars/") else None,
             "website": self.website,
             "google_scholar": self.google_scholar,
             "linkedin": self.linkedin,

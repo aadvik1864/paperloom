@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 import warnings
 import zipfile
+from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -141,6 +142,22 @@ def validate_avatar(file_obj):
 class DocumentConverter:
     SUPPORTED_EXTENSIONS = {".docx", ".doc", ".odt", ".rtf"}
 
+    @staticmethod
+    @lru_cache(maxsize=1)
+    def available():
+        if not all(shutil.which(tool) for tool in ("libreoffice", "prlimit", "bwrap")):
+            return False
+        command = ["bwrap", "--unshare-all", "--die-with-parent", "--new-session", "--clearenv",
+                   "--ro-bind", "/usr", "/usr", "--symlink", "usr/lib", "/lib"]
+        if Path("/lib64").exists():
+            command.extend(["--ro-bind", "/lib64", "/lib64"])
+        command.extend(["--", "/usr/bin/true"])
+        try:
+            return subprocess.run(command, env={"PATH": "/usr/bin:/bin"}, stdout=subprocess.DEVNULL,
+                                  stderr=subprocess.DEVNULL, timeout=5, check=False).returncode == 0
+        except (OSError, subprocess.TimeoutExpired):
+            return False
+
     def convert_to_pdf(self, file_obj):
         extension = Path(file_obj.filename or "").suffix.lower()
         if extension not in self.SUPPORTED_EXTENSIONS | {".pdf"}:
@@ -151,7 +168,7 @@ class DocumentConverter:
             validate_pdf(data)
         else:
             validate_office(data, extension)
-            if not all(shutil.which(tool) for tool in ("libreoffice", "prlimit", "bwrap")):
+            if not self.available():
                 raise RuntimeError("Document conversion is unavailable. Upload a PDF instead.")
             with tempfile.TemporaryDirectory(prefix="paperloom-") as directory:
                 root = Path(directory)

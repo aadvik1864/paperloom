@@ -5,13 +5,20 @@ from models.paper import Paper, Category
 from models.interactions import Bookmark, Citation
 from models.user import User
 from utils.decorators import role_required
-from services.r2_storage import r2_storage
+from services.r2_storage import r2_storage, STORAGE_ERRORS
+from services.file_lifecycle import commit_files
 from services.converter import converter
 import io
 from werkzeug.utils import secure_filename
-from utils.security import require_content_access, visible_query, json_object, text_field
+from utils.security import require_content_access, visible_query, json_object, text_field, positive_id
 
 papers_bp = Blueprint("papers", __name__)
+
+
+@papers_bp.route("/capabilities", methods=["GET"])
+def upload_capabilities():
+    office = converter.available()
+    return jsonify({"office_conversion": office, "extensions": [".pdf"] + sorted(converter.SUPPORTED_EXTENSIONS) if office else [".pdf"]})
 
 
 def generate_citations(paper):
@@ -89,7 +96,7 @@ def get_paper(paper_id):
     paper = Paper.query.get_or_404(paper_id)
     require_content_access(paper, paper.primary_author_id)
 
-    paper.view_count += 1
+    db.session.execute(db.update(Paper).where(Paper.id == paper.id).values(view_count=Paper.view_count + 1))
     db.session.commit()
 
     citations = generate_citations(paper)
@@ -120,8 +127,8 @@ def view_paper_pdf(paper_id):
             as_attachment=True,
             download_name=f"{secure_filename(paper.title) or 'paper'}.pdf",
         )
-    except (RuntimeError, OSError):
-        return jsonify({"message": "Failed to load PDF"}), 500
+    except STORAGE_ERRORS:
+        return jsonify({"message": "PDF storage is unavailable."}), 503
 
 
 @papers_bp.route("/<int:paper_id>/download", methods=["GET"])
@@ -137,9 +144,9 @@ def download_paper(paper_id):
 
     try:
         pdf_data = r2_storage.download_file(paper.pdf_url)
-    except (RuntimeError, OSError):
+    except STORAGE_ERRORS:
         return jsonify({"message": "PDF download is unavailable."}), 503
-    paper.download_count += 1
+    db.session.execute(db.update(Paper).where(Paper.id == paper.id).values(download_count=Paper.download_count + 1))
     db.session.commit()
     return send_file(io.BytesIO(pdf_data), mimetype="application/pdf", as_attachment=True,
                      download_name=f"{secure_filename(paper.title) or 'paper'}.pdf")
@@ -173,10 +180,7 @@ def create_paper():
     keywords = request.form.get("keywords", "").strip()
     institution = request.form.get("institution", "").strip()
     department = request.form.get("department", "").strip()
-    try:
-        category_id = int(request.form.get("category_id", ""))
-    except (TypeError, ValueError):
-        category_id = None
+    category_id = positive_id(request.form.get("category_id", ""))
 
     if not title or not abstract or not authors or not category_id:
         return jsonify({"message": "Title, abstract, authors, and category are required."}), 400
@@ -190,13 +194,15 @@ def create_paper():
         pdf_file = converter.convert_to_pdf(file)
     except RuntimeError:
         return jsonify({"message": "Document conversion is unavailable. Upload a PDF instead."}), 503
-    except (ValueError, FileNotFoundError, OSError) as e:
+    except ValueError as e:
         return jsonify({"message": str(e)}), 400
+    except OSError:
+        return jsonify({"message": "Document processing is unavailable. Upload a PDF instead."}), 503
 
     # Upload to R2
     try:
         pdf_key = r2_storage.upload_file(pdf_file, folder="papers")
-    except RuntimeError:
+    except STORAGE_ERRORS:
         return jsonify({"message": "Paper storage is unavailable."}), 503
 
     paper = Paper(
@@ -212,7 +218,7 @@ def create_paper():
         status="published",
     )
     db.session.add(paper)
-    db.session.commit()
+    commit_files(uploaded=[pdf_key])
 
     return jsonify({
         "message": "Paper published successfully.",
@@ -226,7 +232,7 @@ def create_paper():
 @limiter.limit("20 per hour")
 def update_paper(paper_id):
     user_id = int(get_jwt_identity())
-    paper = Paper.query.get_or_404(paper_id)
+    paper = Paper.query.filter_by(id=paper_id).with_for_update().first_or_404()
 
     if paper.primary_author_id != user_id:
         user = User.query.get(user_id)
@@ -252,34 +258,29 @@ def update_paper(paper_id):
     if "department" in data:
         paper.department = text_field(data, "department", max_length=255)
     if "category_id" in data:
-        try:
-            category_id = int(data["category_id"])
-        except (ValueError, TypeError):
-            return jsonify({"message": "Choose an existing category."}), 400
+        category_id = positive_id(data["category_id"])
         if not db.session.get(Category, category_id):
             return jsonify({"message": "Choose an existing category."}), 400
         paper.category_id = category_id
 
-    # Handle file replacement
+    if not paper.title or not paper.abstract or not paper.authors:
+        return jsonify({"message": "Title, abstract, and authors cannot be blank."}), 400
+
+    old_key = paper.pdf_url
+    pdf_key = None
     if "file" in request.files:
         file = request.files["file"]
         if file.filename != "":
             try:
                 pdf_file = converter.convert_to_pdf(file)
                 pdf_key = r2_storage.upload_file(pdf_file, folder="papers")
-                # Delete old file
-                if paper.pdf_url:
-                    try:
-                        r2_storage.delete_file(paper.pdf_url)
-                    except Exception:
-                        pass
                 paper.pdf_url = pdf_key
-            except RuntimeError:
+            except STORAGE_ERRORS:
                 return jsonify({"message": "Document conversion or storage is unavailable."}), 503
             except ValueError as e:
                 return jsonify({"message": str(e)}), 400
 
-    db.session.commit()
+    commit_files(uploaded=[pdf_key], obsolete=[old_key] if pdf_key else [])
     return jsonify({
         "message": "Paper updated successfully.",
         "paper": paper.to_dict(),
@@ -291,21 +292,16 @@ def update_paper(paper_id):
 @role_required(["author", "admin"])
 def delete_paper(paper_id):
     user_id = int(get_jwt_identity())
-    paper = Paper.query.get_or_404(paper_id)
+    paper = Paper.query.filter_by(id=paper_id).with_for_update().first_or_404()
 
     if paper.primary_author_id != user_id:
         user = User.query.get(user_id)
         if user.role != "admin":
             return jsonify({"message": "You can only delete your own papers."}), 403
 
-    if paper.pdf_url:
-        try:
-            r2_storage.delete_file(paper.pdf_url)
-        except Exception:
-            pass
-
+    old_key = paper.pdf_url
     db.session.delete(paper)
-    db.session.commit()
+    commit_files(obsolete=[old_key])
 
     return jsonify({"message": "Paper deleted successfully."}), 200
 

@@ -1,4 +1,4 @@
-import { useLayoutEffect } from 'react';
+import { lazy, Suspense, useLayoutEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -10,11 +10,14 @@ import Home from './pages/Home';
 import About from './pages/About';
 import Login from './pages/Login';
 import Browse from './pages/Browse';
-import PaperDetails from './pages/PaperDetails';
-import BlogDetails from './pages/BlogDetails';
-import Profile from './pages/Profile';
-import Dashboard from './pages/Dashboard';
-import AdminDashboard from './pages/Admin';
+import NotFound from './pages/NotFound';
+import { LoadingPage } from './components/Common/Loading';
+
+const PaperDetails = lazy(() => import('./pages/PaperDetails'));
+const BlogDetails = lazy(() => import('./pages/BlogDetails'));
+const Profile = lazy(() => import('./pages/Profile'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const AdminDashboard = lazy(() => import('./pages/Admin'));
 
 function App() {
   return (
@@ -26,6 +29,7 @@ function App() {
             <div className="flex flex-col min-h-screen">
               <Header />
               <main id="main-content" className="flex-1" tabIndex={-1}>
+                <Suspense fallback={<LoadingPage />}>
                 <Routes>
                   <Route path="/" element={<Home />} />
                   <Route path="/about" element={<About />} />
@@ -37,7 +41,7 @@ function App() {
                   <Route
                     path="/dashboard/*"
                     element={
-                      <ProtectedRoute roles={['author', 'admin']}>
+                      <ProtectedRoute>
                         <Dashboard />
                       </ProtectedRoute>
                     }
@@ -50,7 +54,9 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
+                  <Route path="*" element={<NotFound />} />
                 </Routes>
+                </Suspense>
               </main>
               <Footer />
             </div>

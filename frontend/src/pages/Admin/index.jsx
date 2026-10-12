@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { LoadingPage } from '../../components/Common/Loading';
 import Pagination from '../../components/Common/Pagination';
+import { useAuth } from '../../context/auth';
+import FormField, { inputClass } from '../../components/Common/FormField';
+import { Feedback } from '../../components/Dashboard/ContentForms';
 
 export default function AdminDashboard() {
   const [tab, setTab] = useState('analytics');
@@ -16,17 +19,16 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="admin-page max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-w-0">
       <h1 className="text-2xl font-bold text-navy-900 dark:text-white mb-6">Admin Dashboard</h1>
 
-      <div className="flex space-x-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1 w-fit mb-8 overflow-x-auto">
+      <div className="dashboard-tabs" role="group" aria-label="Admin sections">
         {tabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap transition ${
-              tab === t.id ? 'bg-white dark:bg-gray-600 text-navy-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-            }`}
+            aria-pressed={tab === t.id}
+            className={tab === t.id ? 'dashboard-tab dashboard-tab--active' : 'dashboard-tab'}
           >
             {t.label}
           </button>
@@ -108,7 +110,7 @@ function CreateProfileTab() {
     setCreating(true);
     setResult(null);
     try {
-      const res = await api.post('/admin/users', { profile_name: profileName, password, role });
+      await api.post('/admin/users', { profile_name: profileName, password, role });
       setResult({ type: 'success', text: `Profile "${profileName}" created!` });
       setProfileName('');
       setPassword('');
@@ -135,20 +137,20 @@ function CreateProfileTab() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Profile Name *</label>
-          <input type="text" value={profileName} onChange={(e) => setProfileName(e.target.value)}
+          <label htmlFor="new-profile-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Profile Name *</label>
+          <input id="new-profile-name" type="text" maxLength={150} value={profileName} onChange={(e) => setProfileName(e.target.value)}
             className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent"
             placeholder="e.g. Research Lab, Dr. Smith, Editorial Team" required />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password *</label>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+          <label htmlFor="new-profile-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password *</label>
+          <input id="new-profile-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)}
             className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent"
              placeholder="At least 12 characters" minLength={12} autoComplete="new-password" required />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Access Level</label>
-          <select value={role} onChange={(e) => setRole(e.target.value)}
+          <label htmlFor="new-profile-role" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Access Level</label>
+          <select id="new-profile-role" value={role} onChange={(e) => setRole(e.target.value)}
             className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent">
             <option value="visitor">Reader (Read Only)</option>
             <option value="author">Author (Read &amp; Post)</option>
@@ -170,42 +172,32 @@ function CreateProfileTab() {
 }
 
 function UsersTab() {
+  const { user, fetchUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [resetting, setResetting] = useState(null);
 
-  const fetchUsers = () => {
+  const fetchUsers = useCallback(() => {
     setLoading(true);
+    setError(null);
     api.get(`/admin/users?page=${page}&per_page=20`)
       .then((res) => { setUsers(res.data.users || []); setPages(res.data.pages ?? 1); })
-      .catch(console.error)
+      .catch(() => setError('Profiles could not load. Try again.'))
       .finally(() => setLoading(false));
-  };
+  }, [page]);
 
-  useEffect(() => { fetchUsers(); }, [page]);
+  useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
   const handleRoleChange = async (userId, role) => {
     try {
       await api.put(`/admin/users/${userId}/role`, { role });
+      if (userId === user.id) await fetchUser();
       fetchUsers();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to update role');
-    }
-  };
-
-  const handleSetPassword = async (userId) => {
-    const newPassword = prompt('Enter new password (min 12 characters, max 72 UTF-8 bytes):');
-    if (!newPassword) return;
-    if (newPassword.length < 12 || new TextEncoder().encode(newPassword).length > 72) {
-      alert('Use at least 12 characters and at most 72 UTF-8 bytes.');
-      return;
-    }
-    try {
-      await api.put(`/admin/users/${userId}/password`, { password: newPassword });
-      alert('Password updated successfully.');
-    } catch (err) {
-      alert(err.response?.data?.message || 'Failed to update password');
     }
   };
 
@@ -224,6 +216,12 @@ function UsersTab() {
   return (
     <div>
       <h2 className="text-lg font-semibold text-navy-900 dark:text-white mb-4">Profile Management</h2>
+      <Feedback message={error} />
+      {error && <button className="button button--secondary mb-4" onClick={fetchUsers}>Try again</button>}
+      {resetting && <PasswordReset key={resetting.id} profile={resetting} onCancel={() => setResetting(null)} onSaved={async () => {
+        if (resetting.id === user.id) await fetchUser();
+        setResetting(null);
+      }} />}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 dark:bg-gray-700/50">
@@ -242,6 +240,7 @@ function UsersTab() {
                 </td>
                 <td className="p-3">
                   <select
+                    aria-label={`Access level for ${u.profile_name}`}
                     value={u.role}
                     onChange={(e) => handleRoleChange(u.id, e.target.value)}
                     className="text-xs border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded px-2 py-1 outline-none"
@@ -253,10 +252,10 @@ function UsersTab() {
                 </td>
                 <td className="p-3 text-gray-400 dark:text-gray-500 text-xs">{u.created_at?.slice(0, 10)}</td>
                 <td className="p-3 text-right space-x-2">
-                  <button onClick={() => handleSetPassword(u.id)} className="text-xs text-accent hover:underline">
+                  <button onClick={() => setResetting(u)} className="text-xs text-accent hover:underline">
                     Set Password
                   </button>
-                  <button onClick={() => handleDeleteUser(u.id)} className="text-xs text-red-400 hover:text-red-600">
+                  <button disabled={u.id === user.id} onClick={() => handleDeleteUser(u.id)} className="text-xs text-red-700 dark:text-red-300 hover:underline disabled:opacity-50">
                     Delete
                   </button>
                 </td>
@@ -275,16 +274,18 @@ function AdminPapersTab() {
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const fetchPapers = () => {
+  const fetchPapers = useCallback(() => {
     setLoading(true);
+    setError(null);
     api.get(`/admin/papers?page=${page}&per_page=20`)
       .then((res) => { setPapers(res.data.papers || []); setPages(res.data.pages ?? 1); })
-      .catch(console.error)
+      .catch(() => setError('Papers could not load. Try again.'))
       .finally(() => setLoading(false));
-  };
+  }, [page]);
 
-  useEffect(() => { fetchPapers(); }, [page]);
+  useEffect(() => { fetchPapers(); }, [fetchPapers]);
 
   const handleToggleStatus = async (id) => {
     try {
@@ -309,10 +310,12 @@ function AdminPapersTab() {
   return (
     <div>
       <h2 className="text-lg font-semibold text-navy-900 dark:text-white mb-4">All Papers</h2>
+      <Feedback message={error} />
+      {error && <button className="button button--secondary mb-4" onClick={fetchPapers}>Try again</button>}
       <div className="space-y-3">
         {papers.map((p) => (
-          <div key={p.id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
-            <div>
+          <div key={p.id} className="dashboard-card flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="min-w-0 break-words">
               <Link to={`/papers/${p.id}`} className="font-medium text-navy-900 dark:text-white hover:text-accent">{p.title}</Link>
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                 By {p.authors} &middot; {p.view_count} views &middot; Status: <span className={`capitalize font-medium ${p.status === 'published' ? 'text-green-600' : 'text-red-500'}`}>{p.status}</span>
@@ -340,16 +343,18 @@ function AdminBlogsTab() {
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const fetchBlogs = () => {
+  const fetchBlogs = useCallback(() => {
     setLoading(true);
+    setError(null);
     api.get(`/admin/blogs?page=${page}&per_page=20`)
       .then((res) => { setBlogs(res.data.blogs || []); setPages(res.data.pages ?? 1); })
-      .catch(console.error)
+      .catch(() => setError('Blogs could not load. Try again.'))
       .finally(() => setLoading(false));
-  };
+  }, [page]);
 
-  useEffect(() => { fetchBlogs(); }, [page]);
+  useEffect(() => { fetchBlogs(); }, [fetchBlogs]);
 
   const handleToggleStatus = async (id) => {
     try {
@@ -374,10 +379,12 @@ function AdminBlogsTab() {
   return (
     <div>
       <h2 className="text-lg font-semibold text-navy-900 dark:text-white mb-4">All Blogs</h2>
+      <Feedback message={error} />
+      {error && <button className="button button--secondary mb-4" onClick={fetchBlogs}>Try again</button>}
       <div className="space-y-3">
         {blogs.map((b) => (
-          <div key={b.id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
-            <div>
+          <div key={b.id} className="dashboard-card flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="min-w-0 break-words">
               <Link to={`/blogs/${b.slug}`} className="font-medium text-navy-900 dark:text-white hover:text-accent">{b.title}</Link>
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                 By {b.author_name} &middot; {b.view_count} views &middot; Status: <span className={`capitalize font-medium ${b.status === 'published' ? 'text-green-600' : 'text-red-500'}`}>{b.status}</span>
@@ -398,4 +405,34 @@ function AdminBlogsTab() {
       <Pagination page={page} pages={pages} onPageChange={setPage} />
     </div>
   );
+}
+
+function PasswordReset({ profile, onCancel, onSaved }) {
+  const [password, setPassword] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const submit = async event => {
+    event.preventDefault();
+    if (saving) return;
+    if (new TextEncoder().encode(password).length > 72) {
+      setError('Use at most 72 UTF-8 bytes.');
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      await api.put(`/admin/users/${profile.id}/password`, { password });
+      setPassword('');
+      await onSaved();
+    } catch (failure) {
+      setError(failure.response?.data?.message || 'Password could not be updated. Try again.');
+    } finally { setSaving(false); }
+  };
+  return <form onSubmit={submit} className="dashboard-card max-w-lg mb-6 space-y-4">
+    <h3 className="text-xl">Set password for {profile.profile_name}</h3>
+    <Feedback message={error} />
+    <FormField label="New password"><input type="password" className={inputClass} value={password} onChange={event => setPassword(event.target.value)} required minLength={12} autoComplete="new-password" /></FormField>
+    <div className="flex gap-3"><button className="button button--primary" disabled={saving}>{saving ? 'Saving…' : 'Save Password'}</button>
+      <button type="button" className="button button--secondary" onClick={onCancel} disabled={saving}>Cancel</button></div>
+  </form>;
 }
