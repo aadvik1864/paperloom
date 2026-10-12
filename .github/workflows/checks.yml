@@ -84,6 +84,14 @@ jobs:
         env:
           REVISION: ${{ github.sha }}
         run: docker build --pull -f backend/Dockerfile --build-arg APP_REVISION="$REVISION" -t paperloom:ci .
+      - name: Run backend regressions on the Alpine runtime
+        run: |
+          docker run --rm -i --user root -v "$PWD:/workspace:ro" -w /workspace paperloom:ci python - <<'PY'
+          import subprocess, sys
+          subprocess.run([sys.executable, '-m', 'pip', 'install', '--no-cache-dir', 'pytest==9.1.1'],
+                         check=True, stdout=subprocess.DEVNULL)
+          subprocess.run([sys.executable, '-m', 'pytest', 'backend/tests', '-q', '-o', 'cache_dir=/tmp/pytest-cache'], check=True)
+          PY
       - name: Smoke-test bundled website and API
         env:
           REVISION: ${{ github.sha }}
@@ -94,6 +102,7 @@ jobs:
               'FLASK_ENV=development\nDATABASE_URL=sqlite:////app/instance/smoke.db\n'
               'RATELIMIT_STORAGE_URI=memory://\nADMIN_PASSWORD=\n'
               f'SECRET_KEY={secrets.token_urlsafe(48)}\nJWT_SECRET_KEY={secrets.token_urlsafe(48)}\n'
+              f'PAPERLOOM_SMOKE_PASSWORD={secrets.token_urlsafe(32)}\n'
           )
           PY
           docker run -d --name paperloom-smoke --env-file "$RUNNER_TEMP/smoke.env" -p 127.0.0.1:5000:5000 paperloom:ci
@@ -110,12 +119,28 @@ jobs:
               raise SystemExit('Container readiness timed out.')
           PY
           python scripts/check_deployment.py --origin http://127.0.0.1:5000 --allow-local --expected-revision "$REVISION"
+      - name: Verify real cookie login, CSRF and server logout
+        run: |
+          docker exec -i paperloom-smoke python - <<'PY'
+          import os
+          from app import create_app
+          from extensions import db
+          from models.user import User
+          app = create_app()
+          with app.app_context():
+              user = User(profile_name='Smoke Author', role='author')
+              user.set_password(os.environ['PAPERLOOM_SMOKE_PASSWORD'])
+              db.session.add(user)
+              db.session.commit()
+          PY
+          export PAPERLOOM_SMOKE_PASSWORD="$(sed -n 's/^PAPERLOOM_SMOKE_PASSWORD=//p' "$RUNNER_TEMP/smoke.env")"
+          python scripts/check_local_sessions.py --origin http://127.0.0.1:5000
       - name: Scan all high and critical image findings
         if: ${{ !cancelled() }}
         run: |
           docker save paperloom:ci -o "$RUNNER_TEMP/paperloom.tar"
           docker run --rm --user "$(id -u):$(id -g)" -v "$RUNNER_TEMP:/scan" \
-            aquasec/trivy@sha256:b5d1b07e61c375597a6e2086bc110257348bba9f9f9a3b30e6e67f3ba0b1aa06 \
+            aquasec/trivy@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa \
             image --cache-dir /tmp/trivy --input /scan/paperloom.tar --scanners vuln \
             --severity HIGH,CRITICAL --format json --output /scan/image-findings.json --exit-code 1
       - name: Keep the complete vulnerability report, including unfixed findings

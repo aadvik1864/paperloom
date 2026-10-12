@@ -5,6 +5,7 @@ from urllib.parse import urlsplit
 import click
 from flask import Flask, abort, jsonify, request, send_from_directory
 from flask_cors import CORS
+from flask_jwt_extended.exceptions import CSRFError
 from redis import Redis
 from redis.exceptions import RedisError
 from sqlalchemy import inspect, text
@@ -23,6 +24,10 @@ def create_app(config_class=Config):
     app.logger.setLevel(logging.INFO)
     app.config.from_object(Config)
     app.config.from_object(config_class)
+    if app.config.get("ENVIRONMENT") == "production" and not app.testing:
+        app.config["JWT_COOKIE_SECURE"] = True
+        app.config["JWT_ACCESS_COOKIE_NAME"] = "__Host-paperloom_access"
+        app.config["JWT_ACCESS_CSRF_COOKIE_NAME"] = "__Host-paperloom_csrf"
     for key in ("SECRET_KEY", "JWT_SECRET_KEY"):
         secret = app.config.get(key)
         if (not isinstance(secret, str) or len(secret) < 32 or len(set(secret)) < 8 or
@@ -97,6 +102,18 @@ def create_app(config_class=Config):
                         raise RuntimeError("Database schema is not ready. Apply the reviewed database migrations before starting.")
             except SQLAlchemyError:
                 raise RuntimeError("Database is unreachable; verify database configuration and network access.") from None
+
+    @app.before_request
+    def protect_cookie_origin():
+        if not request.path.startswith("/api/") or request.method == "OPTIONS":
+            return
+        cookie_mode = request.headers.get("X-Paperloom-Session") == "cookie"
+        if not cookie_mode and app.config["JWT_ACCESS_COOKIE_NAME"] not in request.cookies:
+            return
+        # CORS alone does not prevent cross-site writes or login CSRF.
+        origin = request.headers.get("Origin")
+        if (origin and origin != request.host_url.rstrip("/")) or request.headers.get("Sec-Fetch-Site") == "cross-site":
+            abort(403, description="Use the main website to access your session.")
 
     @app.before_request
     def validate_numeric_inputs():
@@ -237,6 +254,10 @@ def create_app(config_class=Config):
         if error.code == 429:
             response.headers["Retry-After"] = "60"
         return response
+
+    @app.errorhandler(CSRFError)
+    def csrf_error(error):
+        return jsonify({"message": "Session verification failed. Reload the page and try again."}), 403
 
     @app.errorhandler(SQLAlchemyError)
     def database_error(error):

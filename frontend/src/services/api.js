@@ -1,16 +1,24 @@
 import axios from 'axios';
+import { changeSession, csrfToken, sessionVersion, signedOut } from './session';
+
+const baseURL = import.meta.env.VITE_API_URL || '/api';
+export const apiOrigin = new URL(baseURL, window.location.origin).origin;
+export const sameOriginApi = apiOrigin === window.location.origin;
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  baseURL,
+  adapter: 'fetch',
   headers: { 'Content-Type': 'application/json' },
   timeout: 30000,
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  config.paperloomSessionVersion = sessionVersion();
+  config.withCredentials = sameOriginApi && (!signedOut() || config.allowSessionCookies) ? 'same-origin' : 'omit';
   if (config.data instanceof FormData) delete config.headers['Content-Type'];
-  if (token && !config.headers.Authorization) {
-    config.headers.Authorization = `Bearer ${token}`;
+  if (sameOriginApi) {
+    config.headers['X-Paperloom-Session'] = 'cookie';
+    if (!config.headers['X-CSRF-TOKEN']) config.headers['X-CSRF-TOKEN'] = csrfToken();
   }
   return config;
 });
@@ -18,12 +26,11 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const currentToken = localStorage.getItem('token');
-    if (error.response?.status === 401 && currentToken &&
-        error.config?.headers?.Authorization === `Bearer ${currentToken}` &&
+    if (error.response?.status === 401 && !signedOut() &&
+        error.config?.paperloomSessionVersion === sessionVersion() &&
+        !error.config?.skipSessionExpiry &&
         error.config?.url !== '/auth/login') {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      changeSession(true);
       window.dispatchEvent(new Event('paperloom:session-expired'));
     }
     return Promise.reject(error);

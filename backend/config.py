@@ -19,6 +19,16 @@ class Config:
     # JWT
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
+    JWT_TOKEN_LOCATION = ["headers", "cookies"]
+    JWT_COOKIE_SECURE = os.getenv("FLASK_ENV", "production") == "production"
+    JWT_COOKIE_SAMESITE = "Lax"
+    JWT_COOKIE_CSRF_PROTECT = True
+    JWT_CSRF_IN_COOKIES = True
+    JWT_SESSION_COOKIE = False
+    JWT_ACCESS_COOKIE_PATH = "/"
+    JWT_ACCESS_CSRF_COOKIE_PATH = "/"
+    JWT_ACCESS_COOKIE_NAME = "paperloom_access"
+    JWT_ACCESS_CSRF_COOKIE_NAME = "paperloom_csrf"
     APP_REVISION = os.getenv("RENDER_GIT_COMMIT", os.getenv("APP_REVISION", "unknown"))
     ADMIN_PROFILE_NAME = os.getenv("ADMIN_PROFILE_NAME", "Administrator")
     ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")

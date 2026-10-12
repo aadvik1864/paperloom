@@ -6,9 +6,12 @@ const draft = { id: 61, title: 'Secret draft', content: '# Research\n\nDraft con
 const paper = { id: 71, title: 'Research paper', abstract: 'Research abstract', authors: 'Research Lab', category_id: 1, status: 'published', view_count: 2 };
 
 async function session(page, user = author) {
+  await page.context().addCookies([
+    { name: 'paperloom_access', value: 'mock-http-only-session', url: 'http://127.0.0.1:4179', httpOnly: true, sameSite: 'Lax' },
+    { name: 'paperloom_csrf', value: 'mock-csrf-only', url: 'http://127.0.0.1:4179', sameSite: 'Lax' },
+  ]);
   await page.addInitScript(user => {
     localStorage.setItem('user', JSON.stringify(user));
-    localStorage.setItem('token', 'mock-session-only');
   }, user);
 }
 
@@ -136,7 +139,7 @@ test('a delayed profile check cannot undo logout', async ({ page }) => {
   expect(await page.evaluate(() => [localStorage.getItem('token'), localStorage.getItem('user')])).toEqual([null, null]);
 });
 
-test('stale unauthorized responses do not clear a newer token', async ({ page }) => {
+test('stale unauthorized responses do not clear a newer session', async ({ page }) => {
   await session(page);
   let release;
   let started;
@@ -152,19 +155,20 @@ test('stale unauthorized responses do not clear a newer token', async ({ page })
   }});
   await page.goto('/');
   await requested;
-  await page.evaluate(() => localStorage.setItem('token', 'newer-mock-session'));
+  await page.evaluate(() => localStorage.setItem('paperloom:session-version', 'newer-mock-session'));
   const response = page.waitForResponse('**/api/auth/me');
   release();
   await response;
-  expect(await page.evaluate(() => localStorage.getItem('token'))).toBe('newer-mock-session');
+  expect(await page.evaluate(() => localStorage.getItem('paperloom:session-version'))).toBe('newer-mock-session');
+  expect(await page.evaluate(() => localStorage.getItem('paperloom:signed-out'))).toBeNull();
 });
 
-test('logout sends the captured token even after local state is cleared', async ({ page }) => {
+test('logout sends captured CSRF with HttpOnly cookies, not a readable token', async ({ page }) => {
   await session(page);
   let captured;
   await mockApi(page, { handle: async (route, url) => {
     if (url.pathname === '/api/auth/logout') {
-      captured = route.request().headers().authorization;
+      captured = route.request().headers();
       expect(route.request().method()).toBe('POST');
       await route.fulfill({ json: { message: 'Signed out.' } });
       return true;
@@ -174,7 +178,10 @@ test('logout sends the captured token even after local state is cleared', async 
   const response = page.waitForResponse('**/api/auth/logout');
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   await response;
-  expect(captured).toBe('Bearer mock-session-only');
+  expect(captured['x-csrf-token']).toBe('mock-csrf-only');
+  expect(captured['x-paperloom-session']).toBe('cookie');
+  expect(captured.authorization).toBeUndefined();
+  expect(await page.evaluate(() => document.cookie)).not.toContain('mock-http-only-session');
   expect(await page.evaluate(() => localStorage.getItem('token'))).toBeNull();
   await expect(page.getByRole('link', { name: 'Sign in', exact: true })).toBeVisible();
 });
@@ -191,6 +198,85 @@ test('logout failure still clears this device and explains the server risk', asy
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('Server sign-out could not be confirmed');
   expect(await page.evaluate(() => [localStorage.getItem('token'), localStorage.getItem('user')])).toEqual([null, null]);
+  await page.reload();
+  await expect(page.getByRole('link', { name: 'Sign in', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sign out', exact: true })).toHaveCount(0);
+});
+
+test('failed logout cannot silently send its uncleared cookie to private content', async ({ page }) => {
+  await session(page);
+  let privateCookie;
+  await mockApi(page, { handle: async (route, url) => {
+    if (url.pathname === '/api/auth/logout') {
+      await route.fulfill({ status: 503, json: { message: 'Unavailable' } });
+      return true;
+    }
+    if (url.pathname === '/api/blogs/private-after-logout') {
+      privateCookie = route.request().headers().cookie;
+      await route.fulfill(privateCookie ? { json: { blog: draft } } : { status: 404, json: { message: 'Not found' } });
+      return true;
+    }
+  }});
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Server sign-out could not be confirmed');
+  expect((await page.context().cookies()).some(cookie => cookie.name === 'paperloom_access')).toBe(true);
+  await page.goto('/blogs/private-after-logout');
+  await expect(page.getByText('Blog not found.', { exact: true })).toBeVisible();
+  expect(privateCookie).toBeUndefined();
+});
+
+test('login uses cookie mode and never saves a returned bearer token', async ({ page }) => {
+  await mockApi(page, { handle: async (route, url) => {
+    if (url.pathname === '/api/auth/login') {
+      expect(route.request().headers()['x-paperloom-session']).toBe('cookie');
+      expect(route.request().headers().authorization).toBeUndefined();
+      await route.fulfill({ json: { user: author, token: 'must-never-be-stored' } });
+      return true;
+    }
+  }});
+  await page.goto('/login');
+  await page.getByLabel('Profile Name', { exact: true }).fill('Research Lab');
+  await page.getByLabel('Password', { exact: true }).fill('Synthetic-test-password');
+  await page.getByRole('button', { name: 'Sign In', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Sign out', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain('must-never-be-stored');
+  expect(await page.evaluate(() => localStorage.getItem('token'))).toBeNull();
+});
+
+test('a new login waits for delayed logout so old responses cannot erase its cookies', async ({ page }) => {
+  await session(page);
+  let release;
+  let requested;
+  let loginStarted = false;
+  const pending = new Promise(resolve => { release = resolve; });
+  const logoutStarted = new Promise(resolve => { requested = resolve; });
+  await mockApi(page, { handle: async (route, url) => {
+    if (url.pathname === '/api/auth/logout') {
+      requested();
+      await pending;
+      await route.fulfill({ json: { message: 'Signed out.' } });
+      return true;
+    }
+    if (url.pathname === '/api/auth/login') {
+      loginStarted = true;
+      await route.fulfill({ json: { user: author } });
+      return true;
+    }
+  }});
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await logoutStarted;
+  await page.getByRole('link', { name: 'Sign in', exact: true }).click();
+  await page.getByLabel('Profile Name', { exact: true }).fill('Research Lab');
+  await page.getByLabel('Password', { exact: true }).fill('Synthetic-test-password');
+  await page.getByRole('button', { name: 'Sign In', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Signing in...' })).toBeVisible();
+  expect(loginStarted).toBe(false);
+  release();
+  await expect(page.getByRole('button', { name: 'Sign out', exact: true })).toBeVisible();
+  expect(loginStarted).toBe(true);
+  expect(await page.evaluate(() => localStorage.getItem('paperloom:signed-out'))).toBeNull();
 });
 
 test('profile 404 navigation clears the previously displayed user', async ({ page }) => {
@@ -277,4 +363,20 @@ test('login inputs are labeled and passwords are masked', async ({ page }) => {
   await expect(page.getByLabel('Profile Name', { exact: true })).toHaveAttribute('autocomplete', 'username');
   await expect(page.getByLabel('Password', { exact: true })).toHaveAttribute('type', 'password');
   await accessible(page);
+});
+
+test('legacy browser-stored tokens are discarded, not reused', async ({ page }) => {
+  await page.addInitScript(user => {
+    localStorage.setItem('user', JSON.stringify(user));
+    localStorage.setItem('token', 'legacy-token-must-not-be-sent');
+  }, author);
+  const authorization = [];
+  await mockApi(page, { handle: async route => {
+    authorization.push(route.request().headers().authorization);
+    return false;
+  }});
+  await page.goto('/');
+  await expect(page.getByRole('link', { name: 'Sign in', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('token'))).toBeNull();
+  expect(authorization.filter(Boolean)).toEqual([]);
 });

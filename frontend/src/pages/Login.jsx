@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/auth';
+import { apiOrigin, sameOriginApi } from '../services/api';
 
 export default function Login() {
   const [profileName, setProfileName] = useState('');
@@ -39,7 +40,12 @@ export default function Login() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {!sameOriginApi ? (
+            <div className="space-y-4 text-sm text-gray-600 dark:text-gray-300">
+              <p>Profiles are available on the main Paperloom website. Sign in there to keep your session secure.</p>
+              <a href={`${apiOrigin}/login`} className="block text-center rounded-lg bg-accent px-4 py-2.5 font-medium text-white">Continue to Paperloom</a>
+            </div>
+          ) : <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="login-profile" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Profile Name</label>
               <input
@@ -76,7 +82,7 @@ export default function Login() {
             >
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
-          </form>
+          </form>}
         </div>
       </div>
     </div>

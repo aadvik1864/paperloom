@@ -17,6 +17,7 @@ class TestConfig:
     ENVIRONMENT = "testing"
     SECRET_KEY = "test-flask-secret-not-for-production-123456789"
     JWT_SECRET_KEY = "test-jwt-secret-not-for-production-123456789"
+    JWT_COOKIE_SECURE = False
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     RATELIMIT_ENABLED = False
     RATELIMIT_STORAGE_URI = "memory://"

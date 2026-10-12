@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import api from '../services/api';
+import api, { sameOriginApi } from '../services/api';
+import { changeSession, csrfToken, mutateSession, sessionStorageEvent, sessionVersion, signedOut } from '../services/session';
 import { AuthContext } from './auth';
+
+const LOGOUT_WARNING = 'Signed out of this page. Server sign-out could not be confirmed; the browser session may remain valid for up to one hour.';
 
 function getSafeUser(key) {
   try {
@@ -22,16 +25,17 @@ function setSafeUser(key, value) {
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => getSafeUser('user'));
+  const [user, setUser] = useState(() => sameOriginApi && !signedOut() && csrfToken() ? getSafeUser('user') : null);
   const [loading, setLoading] = useState(true);
   const [sessionNotice, setSessionNotice] = useState('');
   const generation = useRef(0);
 
   const fetchUser = useCallback(async () => {
     const version = ++generation.current;
-    const token = localStorage.getItem('token');
-    const current = () => version === generation.current && token === localStorage.getItem('token');
-    if (!token) {
+    const session = sessionVersion();
+    const current = () => version === generation.current && session === sessionVersion() && !signedOut();
+    localStorage.removeItem('token');
+    if (!sameOriginApi || signedOut() || !csrfToken()) {
       setUser(null);
       localStorage.removeItem('user');
       setLoading(false);
@@ -46,7 +50,7 @@ export function AuthProvider({ children }) {
     } catch (error) {
       if (!current()) return;
       if (error.response?.status === 401) {
-        localStorage.removeItem('token');
+        changeSession(true);
         localStorage.removeItem('user');
         setUser(null);
         return;
@@ -55,7 +59,6 @@ export function AuthProvider({ children }) {
       if (cached) {
         setUser(cached);
       } else {
-        localStorage.removeItem('token');
         localStorage.removeItem('user');
         setUser(null);
       }
@@ -73,7 +76,7 @@ export function AuthProvider({ children }) {
       setLoading(false);
     };
     const syncSession = (event) => {
-      if (event.key === 'token') fetchUser();
+      if (sessionStorageEvent(event)) fetchUser();
     };
     window.addEventListener('paperloom:session-expired', clearSession);
     window.addEventListener('storage', syncSession);
@@ -85,11 +88,12 @@ export function AuthProvider({ children }) {
   }, [fetchUser]);
 
   const login = async (profileName, password) => {
+    if (!sameOriginApi) throw new Error('Use the main website to sign in.');
     const version = ++generation.current;
     setSessionNotice('');
-    const res = await api.post('/auth/login', { profile_name: profileName, password });
+    const res = await mutateSession(() => api.post('/auth/login', { profile_name: profileName, password }, { allowSessionCookies: true }));
     if (version !== generation.current) return;
-    localStorage.setItem('token', res.data.token);
+    changeSession(false);
     const u = res.data?.user ?? null;
     setSafeUser('user', u);
     setUser(u);
@@ -99,22 +103,21 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     const version = ++generation.current;
-    const token = localStorage.getItem('token');
+    const csrf = csrfToken();
     setSessionNotice('');
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    changeSession(true);
     setUser(null);
     setLoading(false);
-    if (token) {
-      // Preserve the old token explicitly; local state is cleared immediately.
-      return api.post('/auth/logout', {}, {
-        headers: { Authorization: `Bearer ${token}` }, timeout: 5000,
-      }).catch(error => {
+    if (sameOriginApi && csrf) {
+      return mutateSession(() => api.post('/auth/logout', {}, {
+        headers: { 'X-CSRF-TOKEN': csrf }, timeout: 5000, skipSessionExpiry: true, allowSessionCookies: true,
+      })).catch(error => {
         if (version === generation.current && error.response?.status !== 401) {
-          setSessionNotice('Signed out on this device. Server sign-out could not be confirmed; this session may remain valid for up to one hour.');
+          setSessionNotice(LOGOUT_WARNING);
         }
       });
     }
+    if (user) setSessionNotice(LOGOUT_WARNING);
   };
 
   return (
