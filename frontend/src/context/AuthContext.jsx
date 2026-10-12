@@ -24,6 +24,7 @@ function setSafeUser(key, value) {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => getSafeUser('user'));
   const [loading, setLoading] = useState(true);
+  const [sessionNotice, setSessionNotice] = useState('');
   const generation = useRef(0);
 
   const fetchUser = useCallback(async () => {
@@ -85,6 +86,7 @@ export function AuthProvider({ children }) {
 
   const login = async (profileName, password) => {
     const version = ++generation.current;
+    setSessionNotice('');
     const res = await api.post('/auth/login', { profile_name: profileName, password });
     if (version !== generation.current) return;
     localStorage.setItem('token', res.data.token);
@@ -96,15 +98,27 @@ export function AuthProvider({ children }) {
   };
 
   const logout = () => {
-    ++generation.current;
+    const version = ++generation.current;
+    const token = localStorage.getItem('token');
+    setSessionNotice('');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
     setLoading(false);
+    if (token) {
+      // Preserve the old token explicitly; local state is cleared immediately.
+      return api.post('/auth/logout', {}, {
+        headers: { Authorization: `Bearer ${token}` }, timeout: 5000,
+      }).catch(error => {
+        if (version === generation.current && error.response?.status !== 401) {
+          setSessionNotice('Signed out on this device. Server sign-out could not be confirmed; this session may remain valid for up to one hour.');
+        }
+      });
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, fetchUser }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, fetchUser, sessionNotice }}>
       {children}
     </AuthContext.Provider>
   );

@@ -5,7 +5,7 @@ import { useTheme } from '../../context/theme';
 import Icon from '../Common/Icon';
 
 export default function Header() {
-  const { user, logout } = useAuth();
+  const { user, logout, sessionNotice } = useAuth();
   const { dark, toggle } = useTheme();
   const { pathname, search } = useLocation();
   const navigate = useNavigate();
@@ -97,6 +97,7 @@ export default function Header() {
           </div>
         </nav>
       )}
+      {sessionNotice && <div className="page-container py-3 text-sm" role="alert">{sessionNotice}</div>}
     </header>
   );
 }

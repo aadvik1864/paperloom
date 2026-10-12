@@ -159,6 +159,40 @@ test('stale unauthorized responses do not clear a newer token', async ({ page })
   expect(await page.evaluate(() => localStorage.getItem('token'))).toBe('newer-mock-session');
 });
 
+test('logout sends the captured token even after local state is cleared', async ({ page }) => {
+  await session(page);
+  let captured;
+  await mockApi(page, { handle: async (route, url) => {
+    if (url.pathname === '/api/auth/logout') {
+      captured = route.request().headers().authorization;
+      expect(route.request().method()).toBe('POST');
+      await route.fulfill({ json: { message: 'Signed out.' } });
+      return true;
+    }
+  }});
+  await page.goto('/');
+  const response = page.waitForResponse('**/api/auth/logout');
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await response;
+  expect(captured).toBe('Bearer mock-session-only');
+  expect(await page.evaluate(() => localStorage.getItem('token'))).toBeNull();
+  await expect(page.getByRole('link', { name: 'Sign in', exact: true })).toBeVisible();
+});
+
+test('logout failure still clears this device and explains the server risk', async ({ page }) => {
+  await session(page);
+  await mockApi(page, { handle: async (route, url) => {
+    if (url.pathname === '/api/auth/logout') {
+      await route.fulfill({ status: 503, json: { message: 'Temporarily unavailable.' } });
+      return true;
+    }
+  }});
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Server sign-out could not be confirmed');
+  expect(await page.evaluate(() => [localStorage.getItem('token'), localStorage.getItem('user')])).toEqual([null, null]);
+});
+
 test('profile 404 navigation clears the previously displayed user', async ({ page }) => {
   await mockApi(page, { handle: async (route, url) => {
     if (url.pathname === '/api/users/999') {

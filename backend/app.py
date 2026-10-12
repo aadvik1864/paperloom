@@ -1,10 +1,12 @@
 import hmac
+import logging
 from pathlib import Path
 from urllib.parse import urlsplit
 import click
 from flask import Flask, abort, jsonify, request, send_from_directory
 from flask_cors import CORS
 from redis import Redis
+from redis.exceptions import RedisError
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.exceptions import HTTPException
@@ -13,10 +15,12 @@ from werkzeug.utils import safe_join
 from extensions import db, jwt, limiter
 from config import Config
 from services.r2_storage import r2_storage
+from services.sessions import SessionStore, SessionStoreUnavailable, session_store
 
 
 def create_app(config_class=Config):
     app = Flask(__name__, static_folder=None)
+    app.logger.setLevel(logging.INFO)
     app.config.from_object(Config)
     app.config.from_object(config_class)
     for key in ("SECRET_KEY", "JWT_SECRET_KEY"):
@@ -60,6 +64,7 @@ def create_app(config_class=Config):
     db.init_app(app)
     jwt.init_app(app)
     limiter.init_app(app)
+    app.extensions["paperloom_sessions"] = SessionStore(app.config["RATELIMIT_STORAGE_URI"])
     if app.config.get("ENVIRONMENT") == "production" and not app.testing:
         redis_client = Redis.from_url(
             app.config["RATELIMIT_STORAGE_URI"],
@@ -136,6 +141,8 @@ def create_app(config_class=Config):
             raise click.ClickException(str(error)) from error
         db.session.add(user)
         db.session.commit()
+        from services.audit import audit_event
+        audit_event("bootstrap_admin", "user", user.id)
         click.echo("Administrator saved. Previous sessions are invalidated.")
 
     from routes.auth import auth_bp
@@ -164,6 +171,15 @@ def create_app(config_class=Config):
     @limiter.exempt
     def liveness_check():
         return jsonify({"status": "alive", "service": "paperloom"})
+
+    @app.route("/version")
+    @limiter.exempt
+    def version():
+        import re
+        revision = app.config.get("APP_REVISION", "unknown")
+        if not isinstance(revision, str) or not re.fullmatch(r"[0-9a-f]{40}", revision):
+            revision = "unknown"
+        return jsonify({"service": "paperloom", "revision": revision})
 
     frontend_dir = Path(app.config.get("FRONTEND_DIST", Path(app.root_path) / "frontend_dist"))
     if (frontend_dir / "index.html").is_file():
@@ -195,7 +211,8 @@ def create_app(config_class=Config):
         except (TypeError, ValueError):
             return True
         stamp = payload.get("auth_version")
-        return not user or not isinstance(stamp, str) or not hmac.compare_digest(stamp, auth_version(user))
+        return (not user or not isinstance(stamp, str) or not hmac.compare_digest(stamp, auth_version(user))
+                or not session_store().active(payload))
 
     @jwt.revoked_token_loader
     def revoked_response(jwt_header, payload):
@@ -227,6 +244,12 @@ def create_app(config_class=Config):
         app.logger.error("Database operation failed (%s).", type(error).__name__)
         return jsonify({"message": "The database is temporarily unavailable. Try again."}), 503
 
+    @app.errorhandler(RedisError)
+    @app.errorhandler(SessionStoreUnavailable)
+    def session_store_error(error):
+        db.session.rollback()
+        return jsonify({"message": "The session service is temporarily unavailable. Try again."}), 503
+
     @app.errorhandler(Exception)
     def unexpected_error(error):
         db.session.rollback()
@@ -247,7 +270,7 @@ def create_app(config_class=Config):
         )
         if request.path.startswith("/api/"):
             response.headers["Cache-Control"] = "no-store"
-        if request.path in {"/health", "/live"} or response.mimetype == "text/html":
+        if request.path in {"/health", "/live", "/version"} or response.mimetype == "text/html":
             response.headers["Cache-Control"] = "no-store"
         if request.is_secure:
             response.headers["Strict-Transport-Security"] = "max-age=31536000"

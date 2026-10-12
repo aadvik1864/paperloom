@@ -6,6 +6,8 @@ from models.paper import Paper, Category
 from models.blog import Blog
 from utils.decorators import role_required
 from services.file_lifecycle import commit_files
+from services.audit import audit_event
+from services.sessions import session_store
 from utils.security import json_object, text_field, validate_password, normalize_profile_name
 
 admin_bp = Blueprint("admin", __name__)
@@ -48,6 +50,8 @@ def create_user():
     user.set_password(password)
     db.session.add(user)
     db.session.commit()
+
+    audit_event("create_user", "user", user.id)
 
     return jsonify({
         "message": f"Profile '{profile_name}' created successfully.",
@@ -102,6 +106,7 @@ def admin_set_password(user_id):
 
     user.set_password(new_password)
     db.session.commit()
+    audit_event("reset_password", "user", user.id)
     return jsonify({"message": f"Password updated for '{user.profile_name}'."}), 200
 
 
@@ -119,8 +124,12 @@ def update_user_role(user_id):
     if user.role == "admin" and new_role != "admin" and User.query.filter_by(role="admin").count() <= 1:
         return jsonify({"message": "Keep at least one administrator. Promote another profile first."}), 409
 
+    if user.role != new_role:
+        # Revoke before committing; a Redis outage must not save an unrevoked role change.
+        session_store().revoke_user(str(user.id))
     user.role = new_role
     db.session.commit()
+    audit_event("change_role", "user", user.id)
     return jsonify({"message": "User role updated.", "user": user.to_dict()}), 200
 
 
@@ -140,6 +149,7 @@ def delete_user(user_id):
         old_keys.append(user.profile_photo_url)
     db.session.delete(user)
     commit_files(obsolete=old_keys)
+    audit_event("delete_user", "user", user_id)
     return jsonify({"message": "User deleted successfully."}), 200
 
 
@@ -174,6 +184,7 @@ def toggle_paper_status(paper_id):
     new_status = "removed" if paper.status == "published" else "published"
     paper.status = new_status
     db.session.commit()
+    audit_event("toggle_status", "paper", paper.id)
     return jsonify({"message": f"Paper status changed to '{new_status}'.", "paper": paper.to_dict()}), 200
 
 
@@ -185,6 +196,7 @@ def admin_delete_paper(paper_id):
     old_key = paper.pdf_url
     db.session.delete(paper)
     commit_files(obsolete=[old_key])
+    audit_event("delete_paper", "paper", paper_id)
     return jsonify({"message": "Paper permanently deleted."}), 200
 
 
@@ -219,6 +231,7 @@ def toggle_blog_status(blog_id):
     new_status = "removed" if blog.status == "published" else "published"
     blog.status = new_status
     db.session.commit()
+    audit_event("toggle_status", "blog", blog.id)
     return jsonify({"message": f"Blog status changed to '{new_status}'.", "blog": blog.to_dict()}), 200
 
 
@@ -229,6 +242,7 @@ def admin_delete_blog(blog_id):
     blog = Blog.query.get_or_404(blog_id)
     db.session.delete(blog)
     db.session.commit()
+    audit_event("delete_blog", "blog", blog_id)
     return jsonify({"message": "Blog permanently deleted."}), 200
 
 

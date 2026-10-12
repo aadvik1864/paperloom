@@ -1,7 +1,6 @@
 import sys
 from pathlib import Path
 import pytest
-from flask_jwt_extended import create_access_token
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -10,7 +9,7 @@ from extensions import db
 from models.user import User
 from models.paper import Paper, Category
 from models.blog import Blog
-from utils.security import auth_version
+from services.sessions import issue_access_token
 
 
 class TestConfig:
@@ -69,5 +68,5 @@ def records(app):
 
 @pytest.fixture
 def headers(records):
-    return {name: {"Authorization": f"Bearer {create_access_token(identity=str(records[name].id), additional_claims={'auth_version': auth_version(records[name])})}"}
+    return {name: {"Authorization": f"Bearer {issue_access_token(records[name])}"}
             for name in ("admin", "owner", "other", "reader")}

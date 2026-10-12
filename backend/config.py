@@ -19,6 +19,7 @@ class Config:
     # JWT
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
+    APP_REVISION = os.getenv("RENDER_GIT_COMMIT", os.getenv("APP_REVISION", "unknown"))
     ADMIN_PROFILE_NAME = os.getenv("ADMIN_PROFILE_NAME", "Administrator")
     ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
     MAX_CONTENT_LENGTH = 21 * 1024 * 1024

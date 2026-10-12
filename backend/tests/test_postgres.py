@@ -8,14 +8,13 @@ from alembic import command
 from alembic.config import Config as AlembicConfig
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
-from flask_jwt_extended import create_access_token
 from sqlalchemy import event
 from app import create_app
 from conftest import TestConfig
 from extensions import db
 from models.user import User
 from models.paper import Paper, Category
-from utils.security import auth_version
+from services.sessions import issue_access_token
 
 
 @pytest.fixture
@@ -43,7 +42,7 @@ def test_postgres_simultaneous_demotions_preserve_an_admin(pg_app):
         user.set_password("Private-integration-test-password")
         db.session.add(user)
         db.session.flush()
-        tokens.append((user.id, create_access_token(identity=str(user.id), additional_claims={"auth_version": auth_version(user)})))
+        tokens.append((user.id, issue_access_token(user)))
     db.session.commit()
     barrier = Barrier(2)
     def demote(item):

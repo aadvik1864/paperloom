@@ -25,13 +25,16 @@ PDF replacement commits the new reference before deleting the old object. Failed
 
 ## Office conversion
 
-`GET /api/papers/capabilities` reports whether a namespace-isolated converter is available. When the host does not support that sandbox, the website offers PDF-only uploads. Conversion never falls back to unrestricted LibreOffice or receives application credentials. Do not enable privileged containers or disable isolation to work around host restrictions.
+The default Docker image is PDF-only and omits LibreOffice and its unused parser dependencies. This matches Render's verified PDF-only capabilities. `GET /api/papers/capabilities` reports the available upload formats.
+
+An optional `office` build target retains namespace-isolated conversion for a host that supports it: `docker build --target office -f backend/Dockerfile -t paperloom-office .`. This target has additional package exposure and is not the default Render deployment. Its build was checked locally, but successful sandbox conversion has not been verified on a compatible host. Conversion never falls back to unrestricted LibreOffice or receives application credentials. Do not enable privileged containers or disable isolation to work around host restrictions.
 
 The image updates OS packages and removes setuid/setgid privileges. Rescan the actual deployed image regularly; vendor vulnerabilities without available fixes can remain even when application dependency audits pass. Do not treat a clean dependency audit as proof of complete security.
 
 ## Verification
 
 ```sh
+python -m pip install -r backend/requirements-dev.txt
 python -m pytest backend/tests -q
 python -m pip_audit -r backend/requirements.txt
 ```
@@ -51,4 +54,28 @@ Browser regression tests use synthetic accounts and intercepted APIs, never prod
 
 For concurrent administrator and counter checks, set `PAPERLOOM_TEST_POSTGRES_URL` to a disposable PostgreSQL database on localhost named `paperloom_test`, then run `python -m pytest backend/tests/test_postgres.py -q`. These tests delete the test schema; never point them at application data.
 
-Sessions use short-lived bearer tokens. The browser stores them locally; do not add third-party scripts or render untrusted HTML. Logout clears browser state and prevents stale responses from restoring it; it does not revoke an already copied token. Password or role changes revoke existing sessions. Shared profiles should only be used by people authorized to access their content.
+For shared-session checks, set `PAPERLOOM_TEST_REDIS_URL` to disposable Redis on localhost, database `/15`, then run `python -m pytest backend/tests/test_sessions.py -q`. The integration test only creates and deletes its own random session/generation keys; it does not flush Redis.
+
+## Sessions and rollout
+
+Sessions use one-hour bearer tokens backed by an active-session allowlist in the existing shared Redis service. Login only returns a token after registration succeeds. `POST /api/auth/logout` deletes that token's record; copied tokens are then rejected on every instance using this release. Password or role changes also revoke existing sessions. Role changes rotate a per-profile session generation before committing, so reversing a role cannot revive old tokens and a Redis outage cannot save an unrevoked role change. A failed database save after rotation can require the target to sign in again. Missing/evicted records deny access, and Redis errors deny authenticated requests with a generic unavailable response. This release requires existing users to sign in again; no database migration or new production secret is required. Deploy every instance before relying on global logout revocation. Requests already in progress are not canceled.
+
+The browser clears local state immediately, including when the service is offline. If server revocation cannot be confirmed, it displays a warning: a copied token can remain valid until its original expiry. Memory-backed sessions are for local development/testing only; restarting a local server signs those users out. Keep Redis private, use TLS, monitor its capacity, and do not restore stale `paperloom:sessions:*` or `paperloom:session-epochs:*` records from backups: a pre-logout snapshot could restore an unexpired session. Clear those namespaces as part of an authorized Redis restore before reopening the application.
+
+Tokens remain browser-stored; do not add third-party scripts or render untrusted HTML. A move to HttpOnly cookies with CSRF protection is still pending. Settle canonical same-origin hosting first: the separate static frontend currently calls a cross-site API, and requiring cookies without a routing plan can break sign-in under browser third-party-cookie restrictions. Shared profiles should only be used by people authorized to access their content.
+
+## Release and operational checks
+
+`GET /version` exposes only a validated source commit or `unknown`, never environment details. Render supplies `RENDER_GIT_COMMIT`; other builders should pass `--build-arg APP_REVISION=<full-commit-hash>`. The image also records an OCI revision label. This identifies source, not the provider's deployed image digest.
+
+Run a read-only public check after deploying:
+
+```sh
+python scripts/check_deployment.py --expected-revision <full-commit-hash>
+```
+
+The script checks readiness, liveness, source revision, bundled website, upload capabilities, security headers, hidden-file blocking and unauthenticated private routes. It never logs in, uploads files or changes production data. HTTPS certificates are verified; redirects are not followed. `--allow-local --origin http://127.0.0.1:5000` is available for local smoke tests.
+
+- `.github/workflows/checks.yml` runs backend/PostgreSQL/Redis tests, dependency audits, frontend lint/build/browser tests, a bundled-container smoke test, and a high/critical image scan. The scan fails on **all** high/critical findings, including vendor-unfixed entries; the complete report is retained for 14 days. Remaining base-image findings currently prevent a green image gate. Enable branch protection separately in GitHub before treating these checks as merge enforcement.
+- `.github/workflows/health.yml` runs public checks approximately every 30 minutes, or manually. Scheduled jobs can be delayed and are not a continuous uptime monitor. Enable GitHub workflow-failure notifications and configure a provider/external alerting service for timely incident delivery; alert channels were not changed here.
+- Committed administrative changes emit structured `administrative_change` logs with action, actor/resource IDs and UTC time. Passwords, tokens, profile text and storage keys are excluded. Bootstrap operations have no web actor. Logs are not a tamper-proof transactional audit database; configure restricted retention/export in the hosting provider before relying on them for compliance.

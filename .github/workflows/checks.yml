@@ -1,0 +1,131 @@
+name: Release checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: paperloom
+          POSTGRES_PASSWORD: disposable-ci-password
+          POSTGRES_DB: paperloom_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U paperloom -d paperloom_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:8-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PAPERLOOM_TEST_POSTGRES_URL: postgresql+psycopg2://paperloom:disposable-ci-password@127.0.0.1:5432/paperloom_test
+      PAPERLOOM_TEST_REDIS_URL: redis://127.0.0.1:6379/15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - run: python -m pip install -r backend/requirements-dev.txt
+      - run: python -m pytest backend/tests -q
+      - run: python -m pip_audit -r backend/requirements.txt
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - run: npm audit
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build PDF-only runtime
+        env:
+          REVISION: ${{ github.sha }}
+        run: docker build --pull -f backend/Dockerfile --build-arg APP_REVISION="$REVISION" -t paperloom:ci .
+      - name: Smoke-test bundled website and API
+        env:
+          REVISION: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          import os, pathlib, secrets
+          pathlib.Path(os.environ['RUNNER_TEMP'], 'smoke.env').write_text(
+              'FLASK_ENV=development\nDATABASE_URL=sqlite:////app/instance/smoke.db\n'
+              'RATELIMIT_STORAGE_URI=memory://\nADMIN_PASSWORD=\n'
+              f'SECRET_KEY={secrets.token_urlsafe(48)}\nJWT_SECRET_KEY={secrets.token_urlsafe(48)}\n'
+          )
+          PY
+          docker run -d --name paperloom-smoke --env-file "$RUNNER_TEMP/smoke.env" -p 127.0.0.1:5000:5000 paperloom:ci
+          python - <<'PY'
+          import time, urllib.request
+          for attempt in range(30):
+              try:
+                  with urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=2) as response:
+                      if response.status == 200:
+                          break
+              except OSError:
+                  time.sleep(1)
+          else:
+              raise SystemExit('Container readiness timed out.')
+          PY
+          python scripts/check_deployment.py --origin http://127.0.0.1:5000 --allow-local --expected-revision "$REVISION"
+      - name: Scan all high and critical image findings
+        if: ${{ !cancelled() }}
+        run: |
+          docker save paperloom:ci -o "$RUNNER_TEMP/paperloom.tar"
+          docker run --rm --user "$(id -u):$(id -g)" -v "$RUNNER_TEMP:/scan" \
+            aquasec/trivy@sha256:b5d1b07e61c375597a6e2086bc110257348bba9f9f9a3b30e6e67f3ba0b1aa06 \
+            image --cache-dir /tmp/trivy --input /scan/paperloom.tar --scanners vuln \
+            --severity HIGH,CRITICAL --format json --output /scan/image-findings.json --exit-code 1
+      - name: Keep the complete vulnerability report, including unfixed findings
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: image-vulnerability-report
+          path: ${{ runner.temp }}/image-findings.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Stop smoke container
+        if: always()
+        run: docker rm -f paperloom-smoke

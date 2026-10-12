@@ -17,3 +17,5 @@
 backend/tests
 frontend/tests
 frontend/playwright.config.js
+.github
+scripts

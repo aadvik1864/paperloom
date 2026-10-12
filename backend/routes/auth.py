@@ -1,8 +1,9 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from models.user import User
 from extensions import limiter
-from utils.security import auth_version, json_object, normalize_profile_name
+from utils.security import json_object, normalize_profile_name
+from services.sessions import issue_access_token, session_store
 import hashlib
 
 
@@ -42,13 +43,20 @@ def login():
     if not valid:
         return jsonify({"message": "Invalid profile name or password."}), 401
 
-    access_token = create_access_token(identity=str(user.id), additional_claims={"auth_version": auth_version(user)})
+    access_token = issue_access_token(user)
 
     return jsonify({
         "message": "Login successful.",
         "user": user.to_dict(),
         "token": access_token
     }), 200
+
+
+@auth_bp.route('/logout', methods=['POST'])
+@jwt_required()
+def logout():
+    session_store().revoke(get_jwt())
+    return jsonify({"message": "Signed out."}), 200
 
 
 @auth_bp.route('/me', methods=['GET'])
