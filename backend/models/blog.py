@@ -1,5 +1,5 @@
-from datetime import datetime
 from extensions import db
+from utils.dates import utc_now
 
 class Blog(db.Model):
     __tablename__ = 'blogs'
@@ -7,7 +7,7 @@ class Blog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(255), nullable=False)
     slug = db.Column(db.String(255), unique=True, nullable=False)
-    content = db.Column(db.Text, nullable=False) # Markdown / HTML
+    content = db.Column(db.Text, nullable=False)  # Markdown; raw HTML is not rendered.
     cover_image_url = db.Column(db.Text, nullable=True)
     
     author_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
@@ -17,10 +17,9 @@ class Blog(db.Model):
     status = db.Column(db.String(20), default='draft', nullable=False) # 'draft', 'published', 'removed'
     view_count = db.Column(db.Integer, default=0, nullable=False)
     
-    published_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    published_at = db.Column(db.DateTime, default=utc_now, nullable=True)
+    created_at = db.Column(db.DateTime, default=utc_now, nullable=False)
     
-    # Relationships
     comments = db.relationship('Comment', backref='blog', lazy=True, cascade='all, delete-orphan')
 
     def to_dict(self, include_comments=False):

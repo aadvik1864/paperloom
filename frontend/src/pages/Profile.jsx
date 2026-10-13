@@ -3,6 +3,13 @@ import { useParams, Link } from 'react-router-dom';
 import api from '../services/api';
 import { LoadingPage } from '../components/Common/Loading';
 
+const SOCIAL_LINKS = [
+  ['website', 'Website'],
+  ['google_scholar', 'Google Scholar'],
+  ['linkedin', 'LinkedIn'],
+  ['researchgate', 'ResearchGate'],
+];
+
 export default function Profile() {
   const { id } = useParams();
   const [profile, setProfile] = useState(null);
@@ -46,7 +53,6 @@ export default function Profile() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Profile Header */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 md:p-8 mb-8">
         <div className="flex flex-col md:flex-row items-start md:items-center space-y-4 md:space-y-0 md:space-x-6">
           <div className="w-20 h-20 bg-navy-100 dark:bg-navy-800 rounded-full flex items-center justify-center flex-shrink-0">
@@ -66,34 +72,17 @@ export default function Profile() {
             {profile.bio && (
               <p className="text-sm text-gray-600 dark:text-gray-300 mt-3">{profile.bio}</p>
             )}
-            {/* Social links */}
             <div className="flex flex-wrap gap-3 mt-3">
-              {profile.website && (
-                <a href={profile.website} target="_blank" rel="noopener noreferrer" className="text-xs text-accent hover:underline">
-                  Website
+              {SOCIAL_LINKS.map(([field, label]) => profile[field] && (
+                <a key={field} href={profile[field]} target="_blank" rel="noopener noreferrer" className="text-xs text-accent hover:underline">
+                  {label}
                 </a>
-              )}
-              {profile.google_scholar && (
-                <a href={profile.google_scholar} target="_blank" rel="noopener noreferrer" className="text-xs text-accent hover:underline">
-                  Google Scholar
-                </a>
-              )}
-              {profile.linkedin && (
-                <a href={profile.linkedin} target="_blank" rel="noopener noreferrer" className="text-xs text-accent hover:underline">
-                  LinkedIn
-                </a>
-              )}
-              {profile.researchgate && (
-                <a href={profile.researchgate} target="_blank" rel="noopener noreferrer" className="text-xs text-accent hover:underline">
-                  ResearchGate
-                </a>
-              )}
+              ))}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Papers */}
       <div className="mb-8">
         <h2 className="text-lg font-semibold text-navy-900 dark:text-white mb-4">Published Papers ({papers.length})</h2>
         {papers.length === 0 ? (
@@ -118,7 +107,6 @@ export default function Profile() {
         )}
       </div>
 
-      {/* Blogs */}
       <div>
         <h2 className="text-lg font-semibold text-navy-900 dark:text-white mb-4">Blog Posts ({blogs.length})</h2>
         {blogs.length === 0 ? (

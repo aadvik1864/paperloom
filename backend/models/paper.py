@@ -1,5 +1,5 @@
-from datetime import datetime
 from extensions import db
+from utils.dates import utc_now
 
 class Category(db.Model):
     __tablename__ = 'categories'
@@ -23,24 +23,23 @@ class Paper(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(255), nullable=False)
     abstract = db.Column(db.Text, nullable=False)
-    keywords = db.Column(db.String(255), nullable=True) # Comma-separated list
-    authors = db.Column(db.Text, nullable=False)  # Co-authors plain text representation
+    keywords = db.Column(db.String(255), nullable=True)
+    authors = db.Column(db.Text, nullable=False)
     
     primary_author_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
     institution = db.Column(db.String(255), nullable=True)
     department = db.Column(db.String(255), nullable=True)
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id', ondelete='RESTRICT'), nullable=False)
     
-    pdf_url = db.Column(db.Text, nullable=False) # R2 bucket URL or filename
+    pdf_url = db.Column(db.Text, nullable=False)  # Private R2 object key.
     status = db.Column(db.String(20), default='published', nullable=False) # 'published', 'removed'
     
     view_count = db.Column(db.Integer, default=0, nullable=False)
     download_count = db.Column(db.Integer, default=0, nullable=False)
     
-    published_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    published_at = db.Column(db.DateTime, default=utc_now, nullable=False)
+    created_at = db.Column(db.DateTime, default=utc_now, nullable=False)
     
-    # Relationships
     bookmarks = db.relationship('Bookmark', backref='paper', lazy=True, cascade='all, delete-orphan')
     citations = db.relationship('Citation', backref='paper', lazy=True, cascade='all, delete-orphan')
 

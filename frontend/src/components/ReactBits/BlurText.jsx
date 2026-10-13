@@ -1,22 +1,19 @@
 // Adapted from React Bits by David Haz. See public/third-party-licenses.txt.
 import { motion, useReducedMotion } from 'motion/react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
-function buildKeyframes(from, steps) {
-  const keys = new Set([...Object.keys(from), ...steps.flatMap((step) => Object.keys(step))]);
-  return Object.fromEntries([...keys].map((key) => [key, [from[key], ...steps.map((step) => step[key])]]));
-}
+const INITIAL_STYLES = { filter: 'blur(6px)', opacity: 0, y: 12 };
+const REVEAL_KEYFRAMES = {
+  filter: ['blur(6px)', 'blur(2px)', 'blur(0px)'],
+  opacity: [0, 0.7, 1],
+  y: [12, 2, 0],
+};
 
 export default function BlurText({ text = '', as: Tag = 'p', id, className = '', delay = 65 }) {
   const ref = useRef(null);
   const [inView, setInView] = useState(false);
   const reducedMotion = useReducedMotion();
   const words = text.split(' ');
-  const from = useMemo(() => ({ filter: 'blur(6px)', opacity: 0, y: 12 }), []);
-  const keyframes = useMemo(() => buildKeyframes(from, [
-    { filter: 'blur(2px)', opacity: 0.7, y: 2 },
-    { filter: 'blur(0px)', opacity: 1, y: 0 },
-  ]), [from]);
 
   useEffect(() => {
     if (!ref.current || reducedMotion) return;
@@ -42,8 +39,8 @@ export default function BlurText({ text = '', as: Tag = 'p', id, className = '',
           key={`${index}-${word}`}
           aria-hidden="true"
           className="blur-text__word"
-          initial={reducedMotion ? false : from}
-          animate={reducedMotion ? { filter: 'none', opacity: 1, y: 0 } : (inView ? keyframes : from)}
+          initial={reducedMotion ? false : INITIAL_STYLES}
+          animate={reducedMotion ? { filter: 'none', opacity: 1, y: 0 } : (inView ? REVEAL_KEYFRAMES : INITIAL_STYLES)}
           transition={{ duration: 0.55, delay: reducedMotion ? 0 : index * delay / 1000, times: [0, 0.5, 1], ease: 'easeOut' }}
         >
           {word}{index < words.length - 1 ? '\u00A0' : ''}

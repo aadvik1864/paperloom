@@ -1,5 +1,5 @@
-from datetime import datetime
 from extensions import db
+from utils.dates import utc_now
 
 class Comment(db.Model):
     __tablename__ = 'comments'
@@ -8,7 +8,7 @@ class Comment(db.Model):
     blog_id = db.Column(db.Integer, db.ForeignKey('blogs.id', ondelete='CASCADE'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     content = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=utc_now, nullable=False)
 
     def to_dict(self):
         return {
@@ -28,7 +28,7 @@ class Bookmark(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     paper_id = db.Column(db.Integer, db.ForeignKey('papers.id', ondelete='CASCADE'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=utc_now, nullable=False)
 
     def to_dict(self):
         return {
@@ -46,7 +46,7 @@ class Citation(db.Model):
     paper_id = db.Column(db.Integer, db.ForeignKey('papers.id', ondelete='CASCADE'), nullable=False)
     style = db.Column(db.String(50), nullable=False) # 'APA', 'MLA', 'BibTeX'
     text = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=utc_now, nullable=False)
 
     def to_dict(self):
         return {

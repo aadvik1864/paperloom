@@ -8,7 +8,7 @@ import PublicationCard from '../components/Common/PublicationCard';
 import { SkeletonCard, SkeletonBlogCard } from '../components/Common/Skeleton';
 
 const features = [
-  { title: 'Publish your research', description: 'Upload a PDF or Word document. Give your work a place to be read, downloaded, and cited.', icon: 'file' },
+  { title: 'Publish your research', description: 'Upload a PDF with an abstract, author details, and keywords so readers can find and cite your work.', icon: 'file' },
   { title: 'Share a perspective', description: 'Bring your ideas beyond the abstract with blog posts and conversations with readers.', icon: 'pen' },
   { title: 'Follow your impact', description: 'See how your research reaches people with publication views and download counts.', icon: 'chart' },
 ];

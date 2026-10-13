@@ -1,6 +1,5 @@
 import boto3
 import uuid
-import os
 from botocore.config import Config as BotoConfig
 from botocore.exceptions import BotoCoreError, ClientError
 from boto3.exceptions import Boto3Error
@@ -20,7 +19,6 @@ class R2Storage:
         access_key = app.config.get("R2_ACCESS_KEY_ID")
         secret_key = app.config.get("R2_SECRET_ACCESS_KEY")
         self.bucket = app.config.get("R2_BUCKET_NAME")
-        self.public_url = app.config.get("R2_PUBLIC_URL", "")
 
         if not all([account_id, access_key, secret_key, self.bucket]):
             app.logger.warning("R2 storage not fully configured. File uploads will fail.")
@@ -47,28 +45,6 @@ class R2Storage:
         key = f"{folder}/{filename}"
         self.client.upload_fileobj(file_obj, self.bucket, key, ExtraArgs={"ContentType": file_obj.content_type or "application/octet-stream"})
         return key
-
-    def upload_from_path(self, file_path, folder="papers", filename=None):
-        if not self.client:
-            raise RuntimeError("R2 storage is not configured")
-
-        if filename is None:
-            filename = os.path.basename(file_path)
-
-        key = f"{folder}/{filename}"
-        self.client.upload_file(file_path, self.bucket, key)
-        return key
-
-    def get_url(self, key):
-        if self.public_url:
-            return f"{self.public_url}/{key}"
-        if not self.client:
-            return key
-        return self.client.generate_presigned_url(
-            "get_object",
-            Params={"Bucket": self.bucket, "Key": key},
-            ExpiresIn=3600,
-        )
 
     def download_file(self, key):
         if not self.client:

@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from io import BytesIO
 from pathlib import Path
 from unittest.mock import Mock
@@ -21,10 +22,19 @@ from models.paper import Paper
 from models.user import User
 from services.converter import converter
 from services.r2_storage import r2_storage
+from utils.dates import utc_now
 from test_security import pdf_bytes
 
 
 PRIVATE_MARKER = "private-connection-details-must-not-leak"
+
+
+def test_database_clock_preserves_naive_utc():
+    before = datetime.now(UTC).replace(tzinfo=None)
+    timestamp = utc_now()
+    after = datetime.now(UTC).replace(tzinfo=None)
+    assert timestamp.tzinfo is None
+    assert before <= timestamp <= after
 
 
 def storage_error():

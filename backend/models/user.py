@@ -1,6 +1,6 @@
 import bcrypt
-from datetime import datetime
 from extensions import db
+from utils.dates import utc_now
 
 _DUMMY_PASSWORD_HASH = bcrypt.hashpw(b"paperloom-dummy-login-password", bcrypt.gensalt())
 
@@ -22,7 +22,7 @@ class User(db.Model):
     linkedin = db.Column(db.String(255), nullable=True)
     researchgate = db.Column(db.String(255), nullable=True)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=utc_now, nullable=False)
 
     papers = db.relationship('Paper', backref='primary_author', lazy=True, cascade='all, delete-orphan')
     blogs = db.relationship('Blog', backref='author', lazy=True, cascade='all, delete-orphan')

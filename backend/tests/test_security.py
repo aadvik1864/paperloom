@@ -5,6 +5,7 @@ import bcrypt
 import pytest
 from flask_jwt_extended import create_access_token, decode_token
 from pypdf import PdfWriter
+from pypdf.actions import JavaScript
 from pypdf.generic import DictionaryObject, NameObject, TextStringObject
 from werkzeug.datastructures import FileStorage
 from PIL import Image
@@ -22,7 +23,7 @@ def pdf_bytes(script=False, encrypted=False, attachment=False):
     writer = PdfWriter()
     writer.add_blank_page(width=612, height=792)
     if script:
-        writer.add_js("app.alert('unsafe');")
+        writer.add_open_action(JavaScript("app.alert('unsafe');"))
     if encrypted:
         writer.encrypt("secret")
     if attachment:

@@ -5,7 +5,7 @@ read ideas from the community, and explore work across disciplines.
 
 ## Features
 
-- Search, filter, and sort research papers by topic and relevance.
+- Search papers by title, author, or keyword; filter by discipline and sort by date or readership.
 - Read paper details, preview or download PDFs, copy citations, and save bookmarks.
 - Publish and read research blog posts, with comments and author profiles.
 - Give authors tools to publish work and follow its readership.

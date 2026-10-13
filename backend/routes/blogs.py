@@ -1,5 +1,4 @@
 import re
-from datetime import datetime
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db, limiter
@@ -7,6 +6,7 @@ from models.blog import Blog
 from models.interactions import Comment
 from models.user import User
 from utils.decorators import role_required
+from utils.dates import utc_now
 from utils.security import require_content_access, visible_query, json_object, text_field, safe_url, tags_field, MAX_ID
 
 blogs_bp = Blueprint("blogs", __name__)
@@ -113,7 +113,7 @@ def create_blog():
         category=category,
         tags=tags,
         status=status,
-        published_at=datetime.utcnow() if status == "published" else None,
+        published_at=utc_now() if status == "published" else None,
     )
     db.session.add(blog)
     db.session.commit()
@@ -155,7 +155,7 @@ def update_blog(blog_id):
         if blog.status not in {"draft", "published", "removed"}:
             return jsonify({"message": "Choose draft, published, or removed."}), 400
         if blog.status == "published" and old_status != "published":
-            blog.published_at = datetime.utcnow()
+            blog.published_at = utc_now()
 
     db.session.commit()
     return jsonify({"message": "Blog updated successfully.", "blog": blog.to_dict()}), 200

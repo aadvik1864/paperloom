@@ -47,6 +47,23 @@ test('unknown routes have a useful not-found screen', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Browse papers', exact: true })).toBeVisible();
 });
 
+
+test('about page describes the available features and works on mobile', async ({ page }) => {
+  await mockApi(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/about');
+  await expect(page.getByRole('heading', { name: 'About Paperloom', exact: true })).toBeVisible();
+  await expect(page.locator('main h3')).toContainText([
+    'Research Papers', 'Blog Posts', 'Search and Filters', 'Author Dashboard', 'Citation Generator', 'Admin Controls',
+  ]);
+  await expect(page.locator('main')).not.toContainText(/peer-reviewed|DOI-style|full-text search|Word document/);
+  await noOverflow(page);
+  await accessible(page);
+  await page.getByRole('button', { name: 'Switch to dark mode', exact: true }).click();
+  await noOverflow(page);
+  await accessible(page);
+});
+
 test('readers can open bookmarks but cannot see publishing controls', async ({ page }) => {
   const user = { ...author, role: 'visitor' };
   await session(page, user);
@@ -221,7 +238,9 @@ test('failed logout cannot silently send its uncleared cookie to private content
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('Server sign-out could not be confirmed');
   expect((await page.context().cookies()).some(cookie => cookie.name === 'paperloom_access')).toBe(true);
+  const privateResponse = page.waitForResponse('**/api/blogs/private-after-logout');
   await page.goto('/blogs/private-after-logout');
+  expect((await privateResponse).status()).toBe(404);
   await expect(page.getByText('Blog not found.', { exact: true })).toBeVisible();
   expect(privateCookie).toBeUndefined();
 });
@@ -291,6 +310,22 @@ test('profile 404 navigation clears the previously displayed user', async ({ pag
   await page.evaluate(() => { history.pushState({}, '', '/profile/999'); window.dispatchEvent(new PopStateEvent('popstate')); });
   await expect(page.getByText('User not found.', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: author.profile_name, exact: true })).toHaveCount(0);
+});
+
+
+test('profiles display only configured social links with safe external-link attributes', async ({ page }) => {
+  const user = { ...author, website: 'https://example.com', google_scholar: 'https://scholar.google.com/citations?user=example' };
+  await mockApi(page, { user });
+  await page.goto('/profile/42');
+  const main = page.locator('main');
+  for (const [label, url] of [['Website', user.website], ['Google Scholar', user.google_scholar]]) {
+    const link = main.getByRole('link', { name: label, exact: true });
+    await expect(link).toHaveAttribute('href', url);
+    await expect(link).toHaveAttribute('target', '_blank');
+    await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  }
+  await expect(main.getByRole('link', { name: 'LinkedIn', exact: true })).toHaveCount(0);
+  await expect(main.getByRole('link', { name: 'ResearchGate', exact: true })).toHaveCount(0);
 });
 
 test('Markdown renders safely and blog 404 navigation clears old content', async ({ page }) => {

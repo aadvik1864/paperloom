@@ -108,7 +108,7 @@ export default function BlogDetails() {
               ))}
             </div>
           )}
-          <div className="prose markdown-content max-w-none text-gray-700 dark:text-gray-300 leading-relaxed">
+          <div className="markdown-content max-w-none text-gray-700 dark:text-gray-300 leading-relaxed">
             <ReactMarkdown skipHtml components={{
               a: ({ href, children }) => <a href={href} rel="noopener noreferrer" className="text-link">{children}</a>,
               img: ({ src, alt }) => <img src={src} alt={alt || ''} loading="lazy" referrerPolicy="no-referrer" />,
@@ -117,7 +117,6 @@ export default function BlogDetails() {
         </div>
       </article>
 
-      {/* Comments Section */}
       <section className="mt-8 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 md:p-8">
         <h2 className="text-lg font-semibold text-navy-900 dark:text-white mb-6">
           Comments ({blog.comments?.length || 0})

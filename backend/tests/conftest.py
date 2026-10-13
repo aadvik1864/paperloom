@@ -26,7 +26,6 @@ class TestConfig:
     R2_ACCESS_KEY_ID = None
     R2_SECRET_ACCESS_KEY = None
     R2_BUCKET_NAME = None
-    R2_PUBLIC_URL = ""
     CORS_ORIGINS = ["http://localhost:5173"]
     PROXY_HOPS = 0
 

@@ -136,30 +136,28 @@ function CreateProfileTab() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="new-profile-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Profile Name *</label>
+        <FormField label="Profile Name *">
           <input id="new-profile-name" type="text" maxLength={150} value={profileName} onChange={(e) => setProfileName(e.target.value)}
-            className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent"
+            className={inputClass}
             placeholder="e.g. Research Lab, Dr. Smith, Editorial Team" required />
-        </div>
-        <div>
-          <label htmlFor="new-profile-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password *</label>
+        </FormField>
+        <FormField label="Password *">
           <input id="new-profile-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent"
-             placeholder="At least 12 characters" minLength={12} autoComplete="new-password" required />
-        </div>
+            className={inputClass}
+            placeholder="At least 12 characters" minLength={12} autoComplete="new-password" required />
+        </FormField>
         <div>
-          <label htmlFor="new-profile-role" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Access Level</label>
-          <select id="new-profile-role" value={role} onChange={(e) => setRole(e.target.value)}
-            className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent">
-            <option value="visitor">Reader (Read Only)</option>
-            <option value="author">Author (Read &amp; Post)</option>
-            <option value="admin">Admin (Full Access)</option>
-          </select>
+          <FormField label="Access Level">
+            <select id="new-profile-role" value={role} onChange={(e) => setRole(e.target.value)} className={inputClass}>
+              <option value="visitor">Reader (Read Only)</option>
+              <option value="author">Author (Read &amp; Post)</option>
+              <option value="admin">Admin (Full Access)</option>
+            </select>
+          </FormField>
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-            {role === 'visitor' && 'Can browse, search, and view content only.'}
-            {role === 'author' && 'Can publish papers and blogs, manage own content.'}
-            {role === 'admin' && 'Full access: manage users, content, and platform settings.'}
+            {role === 'visitor' && 'Read papers, save bookmarks, and comment on blogs.'}
+            {role === 'author' && 'Publish papers and blogs; manage your own work.'}
+            {role === 'admin' && 'Manage profiles, access levels, and publications.'}
           </p>
         </div>
         <button type="submit" disabled={creating}
