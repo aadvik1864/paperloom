@@ -17,13 +17,13 @@ users_bp = Blueprint("users", __name__)
 
 @users_bp.route("/<int:user_id>", methods=["GET"])
 def get_profile(user_id):
-    user = User.query.get_or_404(user_id)
+    user = db.get_or_404(User, user_id)
     return jsonify({"user": user.to_dict()}), 200
 
 
 @users_bp.route("/<int:user_id>/avatar", methods=["GET"])
 def get_avatar(user_id):
-    user = User.query.get_or_404(user_id)
+    user = db.get_or_404(User, user_id)
     key = user.profile_photo_url
     if not key or not key.startswith("avatars/"):
         return jsonify({"message": "Avatar not found."}), 404
@@ -118,7 +118,7 @@ def update_profile():
 @jwt_required()
 def get_dashboard():
     user_id = int(get_jwt_identity())
-    user = User.query.get_or_404(user_id)
+    user = db.get_or_404(User, user_id)
 
     total_papers = Paper.query.filter_by(primary_author_id=user_id).count()
     total_views = db.session.query(db.func.sum(Paper.view_count)).filter(Paper.primary_author_id == user_id).scalar() or 0

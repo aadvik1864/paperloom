@@ -1,14 +1,14 @@
+import io
 from flask import Blueprint, request, jsonify, send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db, limiter
 from models.paper import Paper, Category
-from models.interactions import Bookmark, Citation
+from models.interactions import Bookmark
 from models.user import User
 from utils.decorators import role_required
 from services.r2_storage import r2_storage, STORAGE_ERRORS
 from services.file_lifecycle import commit_files
 from services.converter import converter
-import io
 from werkzeug.utils import secure_filename
 from utils.security import require_content_access, visible_query, json_object, text_field, positive_id
 
@@ -93,7 +93,7 @@ def list_categories():
 @papers_bp.route("/<int:paper_id>", methods=["GET"])
 @jwt_required(optional=True)
 def get_paper(paper_id):
-    paper = Paper.query.get_or_404(paper_id)
+    paper = db.get_or_404(Paper, paper_id)
     require_content_access(paper, paper.primary_author_id)
 
     db.session.execute(db.update(Paper).where(Paper.id == paper.id).values(view_count=Paper.view_count + 1))
@@ -111,7 +111,7 @@ def get_paper(paper_id):
 @papers_bp.route("/<int:paper_id>/pdf", methods=["GET"])
 @jwt_required(optional=True)
 def view_paper_pdf(paper_id):
-    paper = Paper.query.get_or_404(paper_id)
+    paper = db.get_or_404(Paper, paper_id)
     require_content_access(paper, paper.primary_author_id)
 
     if not r2_storage.client or not paper.pdf_url:
@@ -134,7 +134,7 @@ def view_paper_pdf(paper_id):
 @papers_bp.route("/<int:paper_id>/download", methods=["GET"])
 @jwt_required(optional=True)
 def download_paper(paper_id):
-    paper = Paper.query.get_or_404(paper_id)
+    paper = db.get_or_404(Paper, paper_id)
     require_content_access(paper, paper.primary_author_id)
 
     if not r2_storage.client:
@@ -155,7 +155,7 @@ def download_paper(paper_id):
 @papers_bp.route("/<int:paper_id>/citations", methods=["GET"])
 @jwt_required(optional=True)
 def get_citations(paper_id):
-    paper = Paper.query.get_or_404(paper_id)
+    paper = db.get_or_404(Paper, paper_id)
     require_content_access(paper, paper.primary_author_id)
     return jsonify({"citations": generate_citations(paper)}), 200
 
@@ -189,7 +189,6 @@ def create_paper():
     if any(len(value) > 255 for value in (title, keywords, institution, department)) or len(abstract) > 100000 or len(authors) > 5000:
         return jsonify({"message": "Paper metadata exceeds the allowed length."}), 400
 
-    # Convert DOCX to PDF if needed
     try:
         pdf_file = converter.convert_to_pdf(file)
     except RuntimeError:
@@ -199,7 +198,6 @@ def create_paper():
     except OSError:
         return jsonify({"message": "Document processing is unavailable. Upload a PDF instead."}), 503
 
-    # Upload to R2
     try:
         pdf_key = r2_storage.upload_file(pdf_file, folder="papers")
     except STORAGE_ERRORS:
@@ -235,7 +233,7 @@ def update_paper(paper_id):
     paper = Paper.query.filter_by(id=paper_id).with_for_update().first_or_404()
 
     if paper.primary_author_id != user_id:
-        user = User.query.get(user_id)
+        user = db.session.get(User, user_id)
         if user.role != "admin":
             return jsonify({"message": "You can only edit your own papers."}), 403
 
@@ -295,7 +293,7 @@ def delete_paper(paper_id):
     paper = Paper.query.filter_by(id=paper_id).with_for_update().first_or_404()
 
     if paper.primary_author_id != user_id:
-        user = User.query.get(user_id)
+        user = db.session.get(User, user_id)
         if user.role != "admin":
             return jsonify({"message": "You can only delete your own papers."}), 403
 
@@ -310,7 +308,7 @@ def delete_paper(paper_id):
 @jwt_required()
 def toggle_bookmark(paper_id):
     user_id = int(get_jwt_identity())
-    paper = Paper.query.get_or_404(paper_id)
+    paper = db.get_or_404(Paper, paper_id)
     require_content_access(paper, paper.primary_author_id)
 
     bookmark = Bookmark.query.filter_by(user_id=user_id, paper_id=paper_id).first()
@@ -329,7 +327,7 @@ def toggle_bookmark(paper_id):
 @jwt_required()
 def check_bookmark(paper_id):
     user_id = int(get_jwt_identity())
-    paper = Paper.query.get_or_404(paper_id)
+    paper = db.get_or_404(Paper, paper_id)
     require_content_access(paper, paper.primary_author_id)
     bookmark = Bookmark.query.filter_by(user_id=user_id, paper_id=paper_id).first()
     return jsonify({"bookmarked": bookmark is not None}), 200

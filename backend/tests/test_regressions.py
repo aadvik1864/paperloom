@@ -13,6 +13,7 @@ from flask_jwt_extended import create_access_token
 from PIL import Image
 from sqlalchemy import create_engine, event, inspect
 from sqlalchemy.exc import SQLAlchemyError
+from werkzeug.exceptions import NotFound
 from app import create_app
 from conftest import TestConfig
 from extensions import db, limiter
@@ -197,6 +198,34 @@ def test_health_checks_redis(client, app, monkeypatch):
 ])
 def test_oversized_path_ids_do_not_raise(client, path):
     assert client.get(path).status_code == 404
+
+
+@pytest.mark.parametrize("method,path", [
+    ("GET", "/api/users/999999"),
+    ("GET", "/api/users/999999/avatar"),
+    ("GET", "/api/papers/999999"),
+    ("GET", "/api/papers/999999/pdf"),
+    ("GET", "/api/papers/999999/download"),
+    ("GET", "/api/papers/999999/citations"),
+    ("GET", "/api/papers/999999/bookmark"),
+    ("POST", "/api/papers/999999/bookmark"),
+    ("PUT", "/api/blogs/999999"),
+    ("DELETE", "/api/blogs/999999"),
+    ("POST", "/api/blogs/999999/comments"),
+    ("DELETE", "/api/blogs/comments/999999"),
+    ("GET", "/api/admin/users/999999"),
+    ("PUT", "/api/admin/users/999999/password"),
+    ("PUT", "/api/admin/users/999999/role"),
+    ("DELETE", "/api/admin/users/999999"),
+    ("PUT", "/api/admin/papers/999999/toggle-status"),
+    ("PUT", "/api/admin/blogs/999999/toggle-status"),
+    ("DELETE", "/api/admin/blogs/999999/delete"),
+])
+def test_missing_resources_return_json_404(client, headers, method, path):
+    response = client.open(path, method=method, headers=headers["admin"], json={})
+    assert response.status_code == 404
+    assert response.is_json
+    assert response.json == {"message": NotFound.description}
 
 
 @pytest.mark.parametrize("query", ["page=9999999999999999999999", "page=-1", "page=no", "per_page=0", "author_id=999999999999999999999", "category_id=0", "page=1&page=2"])

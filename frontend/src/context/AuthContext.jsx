@@ -4,66 +4,71 @@ import { changeSession, csrfToken, mutateSession, sessionStorageEvent, sessionVe
 import { AuthContext } from './auth';
 
 const LOGOUT_WARNING = 'Signed out of this page. Server sign-out could not be confirmed; the browser session may remain valid for up to one hour.';
+const USER_KEY = 'user';
 
-function getSafeUser(key) {
+function readCachedUser() {
   try {
-    const raw = localStorage.getItem(key);
+    const raw = localStorage.getItem(USER_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch {
-    localStorage.removeItem(key);
+    localStorage.removeItem(USER_KEY);
     localStorage.removeItem('token');
     return null;
   }
 }
 
-function setSafeUser(key, value) {
-  if (value == null) {
-    localStorage.removeItem(key);
+function cacheUser(user) {
+  if (user == null) {
+    localStorage.removeItem(USER_KEY);
   } else {
-    localStorage.setItem(key, JSON.stringify(value));
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
   }
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => sameOriginApi && !signedOut() && csrfToken() ? getSafeUser('user') : null);
+  const [user, setUser] = useState(() => sameOriginApi && !signedOut() && csrfToken() ? readCachedUser() : null);
   const [loading, setLoading] = useState(true);
   const [sessionNotice, setSessionNotice] = useState('');
   const generation = useRef(0);
 
   const fetchUser = useCallback(async () => {
-    const version = ++generation.current;
-    const session = sessionVersion();
-    const current = () => version === generation.current && session === sessionVersion() && !signedOut();
+    const requestGeneration = ++generation.current;
+    const startedSessionVersion = sessionVersion();
+    const isCurrentSession = () => (
+      requestGeneration === generation.current &&
+      startedSessionVersion === sessionVersion() &&
+      !signedOut()
+    );
     localStorage.removeItem('token');
     if (!sameOriginApi || signedOut() || !csrfToken()) {
       setUser(null);
-      localStorage.removeItem('user');
+      cacheUser(null);
       setLoading(false);
       return;
     }
     try {
       const res = await api.get('/auth/me');
-      if (!current()) return;
-      const u = res.data?.user ?? null;
-      setUser(u);
-      setSafeUser('user', u);
+      if (!isCurrentSession()) return;
+      const nextUser = res.data?.user ?? null;
+      setUser(nextUser);
+      cacheUser(nextUser);
     } catch (error) {
-      if (!current()) return;
+      if (!isCurrentSession()) return;
       if (error.response?.status === 401) {
         changeSession(true);
-        localStorage.removeItem('user');
+        cacheUser(null);
         setUser(null);
         return;
       }
-      const cached = getSafeUser('user');
+      const cached = readCachedUser();
       if (cached) {
         setUser(cached);
       } else {
-        localStorage.removeItem('user');
+        cacheUser(null);
         setUser(null);
       }
     } finally {
-      if (version === generation.current) setLoading(false);
+      if (requestGeneration === generation.current) setLoading(false);
     }
   }, []);
 
@@ -89,20 +94,24 @@ export function AuthProvider({ children }) {
 
   const login = async (profileName, password) => {
     if (!sameOriginApi) throw new Error('Use the main website to sign in.');
-    const version = ++generation.current;
+    const requestGeneration = ++generation.current;
     setSessionNotice('');
-    const res = await mutateSession(() => api.post('/auth/login', { profile_name: profileName, password }, { allowSessionCookies: true }));
-    if (version !== generation.current) return;
+    const res = await mutateSession(() => api.post(
+      '/auth/login',
+      { profile_name: profileName, password },
+      { allowSessionCookies: true },
+    ));
+    if (requestGeneration !== generation.current) return;
     changeSession(false);
-    const u = res.data?.user ?? null;
-    setSafeUser('user', u);
-    setUser(u);
+    const nextUser = res.data?.user ?? null;
+    cacheUser(nextUser);
+    setUser(nextUser);
     setLoading(false);
     return res.data;
   };
 
   const logout = () => {
-    const version = ++generation.current;
+    const requestGeneration = ++generation.current;
     const csrf = csrfToken();
     setSessionNotice('');
     changeSession(true);
@@ -110,9 +119,12 @@ export function AuthProvider({ children }) {
     setLoading(false);
     if (sameOriginApi && csrf) {
       return mutateSession(() => api.post('/auth/logout', {}, {
-        headers: { 'X-CSRF-TOKEN': csrf }, timeout: 5000, skipSessionExpiry: true, allowSessionCookies: true,
+        headers: { 'X-CSRF-TOKEN': csrf },
+        timeout: 5000,
+        skipSessionExpiry: true,
+        allowSessionCookies: true,
       })).catch(error => {
-        if (version === generation.current && error.response?.status !== 401) {
+        if (requestGeneration === generation.current && error.response?.status !== 401) {
           setSessionNotice(LOGOUT_WARNING);
         }
       });

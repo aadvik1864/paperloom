@@ -14,7 +14,8 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   config.paperloomSessionVersion = sessionVersion();
-  config.withCredentials = sameOriginApi && (!signedOut() || config.allowSessionCookies) ? 'same-origin' : 'omit';
+  const includeCookies = sameOriginApi && (!signedOut() || config.allowSessionCookies);
+  config.withCredentials = includeCookies ? 'same-origin' : 'omit';
   if (config.data instanceof FormData) delete config.headers['Content-Type'];
   if (sameOriginApi) {
     config.headers['X-Paperloom-Session'] = 'cookie';

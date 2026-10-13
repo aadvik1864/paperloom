@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db, limiter
@@ -6,7 +7,6 @@ from models.blog import Blog
 from models.interactions import Comment
 from models.user import User
 from utils.decorators import role_required
-from services.r2_storage import r2_storage
 from utils.security import require_content_access, visible_query, json_object, text_field, safe_url, tags_field, MAX_ID
 
 blogs_bp = Blueprint("blogs", __name__)
@@ -113,7 +113,7 @@ def create_blog():
         category=category,
         tags=tags,
         status=status,
-        published_at=__import__("datetime").datetime.utcnow() if status == "published" else None,
+        published_at=datetime.utcnow() if status == "published" else None,
     )
     db.session.add(blog)
     db.session.commit()
@@ -126,10 +126,10 @@ def create_blog():
 @role_required(["author", "admin"])
 def update_blog(blog_id):
     user_id = int(get_jwt_identity())
-    blog = Blog.query.get_or_404(blog_id)
+    blog = db.get_or_404(Blog, blog_id)
 
     if blog.author_id != user_id:
-        user = User.query.get(user_id)
+        user = db.session.get(User, user_id)
         if user.role != "admin":
             return jsonify({"message": "You can only edit your own blogs."}), 403
 
@@ -155,7 +155,7 @@ def update_blog(blog_id):
         if blog.status not in {"draft", "published", "removed"}:
             return jsonify({"message": "Choose draft, published, or removed."}), 400
         if blog.status == "published" and old_status != "published":
-            blog.published_at = __import__("datetime").datetime.utcnow()
+            blog.published_at = datetime.utcnow()
 
     db.session.commit()
     return jsonify({"message": "Blog updated successfully.", "blog": blog.to_dict()}), 200
@@ -166,10 +166,10 @@ def update_blog(blog_id):
 @role_required(["author", "admin"])
 def delete_blog(blog_id):
     user_id = int(get_jwt_identity())
-    blog = Blog.query.get_or_404(blog_id)
+    blog = db.get_or_404(Blog, blog_id)
 
     if blog.author_id != user_id:
-        user = User.query.get(user_id)
+        user = db.session.get(User, user_id)
         if user.role != "admin":
             return jsonify({"message": "You can only delete your own blogs."}), 403
 
@@ -183,7 +183,7 @@ def delete_blog(blog_id):
 @limiter.limit("20 per minute")
 def add_comment(blog_id):
     user_id = int(get_jwt_identity())
-    blog = Blog.query.get_or_404(blog_id)
+    blog = db.get_or_404(Blog, blog_id)
     require_content_access(blog, blog.author_id)
     data = json_object()
 
@@ -206,10 +206,10 @@ def add_comment(blog_id):
 @jwt_required()
 def delete_comment(comment_id):
     user_id = int(get_jwt_identity())
-    comment = Comment.query.get_or_404(comment_id)
+    comment = db.get_or_404(Comment, comment_id)
 
     if comment.user_id != user_id:
-        user = User.query.get(user_id)
+        user = db.session.get(User, user_id)
         if user.role != "admin":
             return jsonify({"message": "You can only delete your own comments."}), 403
 

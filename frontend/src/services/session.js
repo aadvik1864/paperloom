@@ -19,9 +19,9 @@ export function signedOut() {
   return localStorage.getItem(SIGNED_OUT_KEY) === '1';
 }
 
-export function changeSession(out) {
+export function changeSession(isSignedOut) {
   localStorage.setItem(VERSION_KEY, crypto.randomUUID());
-  if (out) {
+  if (isSignedOut) {
     localStorage.setItem(SIGNED_OUT_KEY, '1');
     localStorage.removeItem('user');
   } else {

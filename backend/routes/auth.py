@@ -1,10 +1,10 @@
+import hashlib
 from flask import Blueprint, request, jsonify, current_app, abort
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt, get_jwt_request_location, set_access_cookies, unset_access_cookies
 from models.user import User
-from extensions import limiter
+from extensions import db, limiter
 from utils.security import json_object, normalize_profile_name
 from services.sessions import issue_access_token, session_store
-import hashlib
 
 
 def login_profile_key():
@@ -75,7 +75,7 @@ def logout():
 @jwt_required()
 def get_current_user():
     user_id = int(get_jwt_identity())
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
 
     if not user:
         return jsonify({"message": "User not found"}), 404

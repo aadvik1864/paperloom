@@ -87,7 +87,7 @@ def list_users():
 @jwt_required()
 @role_required("admin")
 def get_user(user_id):
-    user = User.query.get_or_404(user_id)
+    user = db.get_or_404(User, user_id)
     return jsonify({"user": user.to_dict()}), 200
 
 
@@ -95,7 +95,7 @@ def get_user(user_id):
 @jwt_required()
 @role_required("admin")
 def admin_set_password(user_id):
-    user = User.query.get_or_404(user_id)
+    user = db.get_or_404(User, user_id)
     data = json_object()
 
     new_password = data.get("password", "")
@@ -115,7 +115,7 @@ def admin_set_password(user_id):
 @role_required("admin")
 def update_user_role(user_id):
     lock_administrators()
-    user = User.query.get_or_404(user_id)
+    user = db.get_or_404(User, user_id)
     data = json_object()
 
     new_role = text_field(data, "role")
@@ -141,7 +141,7 @@ def delete_user(user_id):
     if user_id == int(get_jwt_identity()):
         return jsonify({"message": "You cannot delete yourself."}), 400
 
-    user = User.query.get_or_404(user_id)
+    user = db.get_or_404(User, user_id)
     if user.role == "admin" and User.query.filter_by(role="admin").count() <= 1:
         return jsonify({"message": "The last administrator cannot be deleted."}), 409
     old_keys = [p.pdf_url for p in user.papers]
@@ -180,7 +180,7 @@ def list_all_papers():
 @jwt_required()
 @role_required("admin")
 def toggle_paper_status(paper_id):
-    paper = Paper.query.get_or_404(paper_id)
+    paper = db.get_or_404(Paper, paper_id)
     new_status = "removed" if paper.status == "published" else "published"
     paper.status = new_status
     db.session.commit()
@@ -227,7 +227,7 @@ def list_all_blogs():
 @jwt_required()
 @role_required("admin")
 def toggle_blog_status(blog_id):
-    blog = Blog.query.get_or_404(blog_id)
+    blog = db.get_or_404(Blog, blog_id)
     new_status = "removed" if blog.status == "published" else "published"
     blog.status = new_status
     db.session.commit()
@@ -239,7 +239,7 @@ def toggle_blog_status(blog_id):
 @jwt_required()
 @role_required("admin")
 def admin_delete_blog(blog_id):
-    blog = Blog.query.get_or_404(blog_id)
+    blog = db.get_or_404(Blog, blog_id)
     db.session.delete(blog)
     db.session.commit()
     audit_event("delete_blog", "blog", blog_id)

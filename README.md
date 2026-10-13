@@ -12,4 +12,4 @@ read ideas from the community, and explore work across disciplines.
 - Provide administrators with tools to manage accounts and moderate publications.
 - Browse a responsive interface with light and dark themes.
 
-Website: https://github.com/aadvik1864/paperloom
+Website: https://paperloom.onrender.com
