@@ -1,4 +1,4 @@
-# React Bits — third-party notices
+# React Bits: third-party notices
 
 `src/components/ReactBits/BlurText.jsx` and `SpotlightCard.jsx`, together with
 their styles in `src/index.css`, are adapted from [React Bits](https://reactbits.dev/)
