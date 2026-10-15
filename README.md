@@ -3,10 +3,6 @@
 Paperloom is a website for sharing research papers and blog posts. Readers can
 explore work across subjects, save papers for later, and discuss ideas with authors.
 
-**[Visit Paperloom](https://paperloom.onrender.com)** ·
-[Browse papers](https://paperloom.onrender.com/browse) ·
-[Read blog posts](https://paperloom.onrender.com/browse?type=blogs)
-
 ## Features
 
 - Search papers by title, author, or keyword. Filter by subject and sort by date, views, or downloads.
