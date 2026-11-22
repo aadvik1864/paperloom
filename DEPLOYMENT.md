@@ -2,7 +2,7 @@
 
 The Docker service bundles the website and API. Configure secrets only in the hosting environment, never in source files or `VITE_*` variables. The latter are public browser configuration.
 
-The canonical website is **https://paperloom.onrender.com**, with the API at `/api` on that same origin. Use `VITE_API_URL=/api`, including local development through Vite's proxy. A separate frontend configured with an absolute cross-origin API URL remains a public preview; its sign-in screen links to the API origin's bundled website instead of requesting cross-site cookies or storing bearer tokens. Deploy the updated frontend to that preview as well; an old build will no longer be able to sign in.
+The sole public website is **https://paperloom.onrender.com**, with the API at `/api` on that same origin. Use `VITE_API_URL=/api`, including local development through Vite's proxy. The old `paperloom-frontend.onrender.com` showcase is retired: updated builds forward its links to the main website before rendering the application. Deploy this update to the old static service while retiring it. Delete that static service in Render after confirming the main website and `/health` return HTTP 200. Removing its hosting resource is a separate provider operation; this source change does not delete the service, database, users or publications.
 
 ## Database changes
 
